@@ -80,7 +80,7 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                   ElevatedButton.icon(
                     onPressed: _showCreateTaskDialog,
                     icon: Icon(Icons.add),
-                    label: Text('Create Tasking'),
+                    label: Text('Create Task'),
                     style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
                   ),
                 ],
