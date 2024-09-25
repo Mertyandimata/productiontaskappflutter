@@ -1,4 +1,4 @@
-enum SubTaskStatus { backlog, inProgress, waiting, done }
+
 
 class MainTask {
   final String name;
@@ -34,17 +34,44 @@ class MainTask {
 }
 
 class SubTask {
-  final String name;
-  final String assignedTo;
-  final DateTime dueDate;
-  final String note;
+  final String id;  // Unique identifier for the subtask
+  late final String name;
+  String assignedTo;
+  DateTime dueDate;
+  String note;
   SubTaskStatus status;
 
   SubTask({
+    required this.id,
     required this.name,
     required this.assignedTo,
     required this.dueDate,
     required this.note,
     this.status = SubTaskStatus.backlog,
   });
+
+  // Optional: Add a method to create a copy of the SubTask with updated fields
+  SubTask copyWith({
+    String? name,
+    String? assignedTo,
+    DateTime? dueDate,
+    String? note,
+    SubTaskStatus? status,
+  }) {
+    return SubTask(
+      id: this.id,
+      name: name ?? this.name,
+      assignedTo: assignedTo ?? this.assignedTo,
+      dueDate: dueDate ?? this.dueDate,
+      note: note ?? this.note,
+      status: status ?? this.status,
+    );
+  }
+}
+
+enum SubTaskStatus {
+  backlog,
+  inProgress,
+  waiting,
+  done,
 }

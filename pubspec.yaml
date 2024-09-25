@@ -15,6 +15,7 @@ dependencies:
   barcode_scanner: ^5.1.0
   flutter_barcode_scanner: ^2.0.0
   postgres: ^3.3.0
+  fl_chart: ^0.69.0
 
 dev_dependencies:
   flutter_test:

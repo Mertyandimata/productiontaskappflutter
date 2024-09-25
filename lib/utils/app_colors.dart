@@ -26,4 +26,8 @@ class AppColors {
   static const Color backgroundDark = veryLightGreen;
   static const Color textDark = darkGreen;
   static const Color textLight = almostWhite;
+    static const Color chartBacklog = Colors.grey;
+  static const Color chartWaiting = lightGreen;
+  static const Color chartInProgress = mediumGreen;
+  static const Color chartDone = darkGreen; // koyu yeşil
 }

@@ -91,30 +91,38 @@ class MainTaskCard extends StatelessWidget {
     );
   }
 
-  Widget _buildCompletionIndicator() {
-    return Container(
-      width: 100,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Text(
-            '${(task.completionRate * 100).toStringAsFixed(0)}%',
-            style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary, fontSize: 14),
+Widget _buildCompletionIndicator() {
+  return Container(
+    width: 100,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Text(
+          '${(task.completionRate * 100).toStringAsFixed(0)}%',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppColors.primary,
+            fontSize: 14,
           ),
-          SizedBox(height: 4),
-          LinearProgressIndicator(
+        ),
+        SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(16), // Circular kenar yap
+          child: LinearProgressIndicator(
             value: task.completionRate,
             backgroundColor: AppColors.veryLightGreen,
             valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
             minHeight: 6,
           ),
-          SizedBox(height: 2),
-          Text(
-            task.completionString,
-            style: TextStyle(color: AppColors.mediumGreen, fontSize: 10),
-          ),
-        ],
-      ),
-    );
-  }
+        ),
+        SizedBox(height: 2),
+        Text(
+          task.completionString,
+          style: TextStyle(color: AppColors.mediumGreen, fontSize: 10),
+        ),
+      ],
+    ),
+  );
+}
+
 }

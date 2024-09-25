@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/tasks.dart';
 import '../utils/app_colors.dart';
 import '../widgets/main_task_card.dart';
@@ -11,47 +12,189 @@ class TaskManagementPage extends StatefulWidget {
 }
 
 class _TaskManagementPageState extends State<TaskManagementPage> {
-  String selectedDepartment = 'Hot Water';
-  List<String> departments = ['Hot Water', 'Cold Water', 'Machining', 'Pressing'];
-  String selectedPlant = 'DM1';
-  List<String> plants = ['DM1', 'DS5', 'DC3', 'DB4'];
+  String? selectedDepartment;
+  List<String> departments = ['All', 'Hot Water', 'Cold Water', 'Machining', 'Pressing'];
+  String? selectedPlant;
+  List<String> plants = ['All', 'DM1', 'DS5', 'DC3', 'DB4'];
+    @override
+  void initState() {
+    super.initState();
+    if (mainTasks.isNotEmpty) {
+      // İlk görev otomatik olarak seçiliyor
+      mainTasks.sort((a, b) => b.startDate.compareTo(a.startDate));
+      selectedTask = mainTasks[0];
+    }
+  }
   
-  List<MainTask> mainTasks = [
-    MainTask(
-      name: 'Optimize Production Line',
-      description: 'Improve efficiency of the main production line',
-      peopleInvolved: ['John Doe', 'Jane Smith'],
-      startDate: DateTime.now().subtract(Duration(days: 10)),
-      dueDate: DateTime.now().add(Duration(days: 20)),
-      subTasks: [],
-      department: 'Hot Water',
-      plant: 'DM1',
-    ),
-    // Add more sample tasks here
-  ];
+List<MainTask> mainTasks = [
+  MainTask(
+    name: 'Optimize Production Line',
+    description: 'Improve efficiency of the main production line',
+    peopleInvolved: ['John Doe', 'Jane Smith'],
+    startDate: DateTime.now().subtract(Duration(days: 10)),
+    dueDate: DateTime.now().add(Duration(days: 20)),
+    department: 'Hot Water',
+    plant: 'DM1',
+    subTasks: [
+      SubTask(
+        id: '1',
+        name: 'Analyze current workflow',
+        assignedTo: 'John Doe',
+        dueDate: DateTime.now().add(Duration(days: 5)),
+        note: 'Identify bottlenecks in the production process',
+        status: SubTaskStatus.inProgress,
+      ),
+      SubTask(
+        id: '2',
+        name: 'Implement new scheduling system',
+        assignedTo: 'Jane Smith',
+        dueDate: DateTime.now().add(Duration(days: 10)),
+        note: 'Introduce a new system to reduce downtime',
+        status: SubTaskStatus.backlog,
+      ),
+    ],
+  ),
+  MainTask(
+    name: 'Install New Press Machine',
+    description: 'Install and calibrate the new press machine in the plant.',
+    peopleInvolved: ['Alice Johnson', 'Mark Thompson'],
+    startDate: DateTime.now().subtract(Duration(days: 5)),
+    dueDate: DateTime.now().add(Duration(days: 25)),
+    department: 'Pressing',
+    plant: 'DC3',
+    subTasks: [
+      SubTask(
+        id: '3',
+        name: 'Machine setup and calibration',
+        assignedTo: 'Alice Johnson',
+        dueDate: DateTime.now().add(Duration(days: 15)),
+        note: 'Ensure machine is properly calibrated',
+        status: SubTaskStatus.backlog,
+      ),
+    ],
+  ),
+  MainTask(
+    name: 'Cold Water System Maintenance',
+    description: 'Perform scheduled maintenance on the cold water system.',
+    peopleInvolved: ['Samantha Lee', 'Chris Evans'],
+    startDate: DateTime.now().subtract(Duration(days: 15)),
+    dueDate: DateTime.now().add(Duration(days: 10)),
+    department: 'Cold Water',
+    plant: 'DS5',
+    subTasks: [],
+  ),
+  MainTask(
+    name: 'Upgrade Machining Equipment',
+    description: 'Upgrade the machining equipment for better precision.',
+    peopleInvolved: ['Robert Downey', 'Natalie Portman'],
+    startDate: DateTime.now().subtract(Duration(days: 20)),
+    dueDate: DateTime.now().add(Duration(days: 15)),
+    department: 'Machining',
+    plant: 'DB4',
+    subTasks: [
+      SubTask(
+        id: '4',
+        name: 'Order new parts',
+        assignedTo: 'Natalie Portman',
+        dueDate: DateTime.now().add(Duration(days: 5)),
+        note: 'Ensure all new parts are ordered and delivered on time',
+        status: SubTaskStatus.waiting,
+      ),
+    ],
+  ),
+  MainTask(
+    name: 'Energy Efficiency Audit',
+    description: 'Conduct an energy audit to find ways to reduce electricity usage.',
+    peopleInvolved: ['Bruce Wayne', 'Diana Prince'],
+    startDate: DateTime.now().subtract(Duration(days: 3)),
+    dueDate: DateTime.now().add(Duration(days: 30)),
+    department: 'Hot Water',
+    plant: 'DM1',
+    subTasks: [
+      SubTask(
+        id: '5',
+        name: 'Collect energy usage data',
+        assignedTo: 'Bruce Wayne',
+        dueDate: DateTime.now().add(Duration(days: 7)),
+        note: 'Review current energy consumption metrics',
+        status: SubTaskStatus.inProgress,
+      ),
+      SubTask(
+        id: '6',
+        name: 'Present findings to management',
+        assignedTo: 'Diana Prince',
+        dueDate: DateTime.now().add(Duration(days: 20)),
+        note: 'Show potential areas for reducing energy usage',
+        status: SubTaskStatus.backlog,
+      ),
+    ],
+  ),
+  MainTask(
+    name: 'Inspect Safety Equipment',
+    description: 'Check the condition of all safety equipment in the plant.',
+    peopleInvolved: ['Clark Kent', 'Barry Allen'],
+    startDate: DateTime.now().subtract(Duration(days: 7)),
+    dueDate: DateTime.now().add(Duration(days: 21)),
+    department: 'Pressing',
+    plant: 'DS5',
+    subTasks: [
+      SubTask(
+        id: '7',
+        name: 'Inspect fire extinguishers',
+        assignedTo: 'Clark Kent',
+        dueDate: DateTime.now().add(Duration(days: 14)),
+        note: 'Ensure all extinguishers are up to date',
+        status: SubTaskStatus.inProgress,
+      ),
+    ],
+  ),
+];
+
 
   MainTask? selectedTask;
 
   @override
   Widget build(BuildContext context) {
     List<MainTask> filteredTasks = mainTasks.where((task) =>
-      task.department == selectedDepartment && task.plant == selectedPlant
+      (selectedDepartment == null || selectedDepartment == 'All' || task.department == selectedDepartment) &&
+      (selectedPlant == null || selectedPlant == 'All' || task.plant == selectedPlant)
     ).toList();
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Task Management'),
-        backgroundColor: AppColors.primary,
-        actions: [
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.only(right: 16.0),
-              child: Text(
-                '$selectedPlant / $selectedDepartment',
-                style: TextStyle(fontSize: 16),
+        systemOverlayStyle: SystemUiOverlayStyle.dark,
+        toolbarHeight: 80, // Increased height for better spacing
+        title: Row(
+          children: [
+            Image.asset(
+              'assets/logo2.png',
+              height: 90, // Adjusted height
+              width: 120, // Adjusted width
+            ),
+            SizedBox(width: 10),
+            Text(
+              'ETSU Operations Dashboard',
+              style: TextStyle(
+                color: AppColors.darkGreen,
+                fontWeight: FontWeight.bold,
+                fontSize: 20, // Adjusted font size
               ),
             ),
+          ],
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12.0),
+            child: _buildPlantDropdown(),
           ),
+          SizedBox(width: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12.0),
+            child: _buildDepartmentDropdown(),
+          ),
+          SizedBox(width: 16),
         ],
       ),
       body: Container(
@@ -65,8 +208,6 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSelectionHeaders(),
-            _buildSelectionChips(),
             SizedBox(height: 20),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -75,45 +216,52 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
                 children: [
                   Text(
                     'Main Tasks',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.primary),
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primary),
                   ),
                   ElevatedButton.icon(
                     onPressed: _showCreateTaskDialog,
-                    icon: Icon(Icons.add),
-                    label: Text('Create Task'),
-                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
+                    icon: Icon(Icons.add, color: Colors.white),
+                    label: Text('Create Task', style: TextStyle(color: Colors.white)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
                   ),
                 ],
               ),
             ),
-            SizedBox(height: 10),
+            SizedBox(height: 20),
             Expanded(
               child: Row(
                 children: [
                   Expanded(
-                    flex: selectedTask != null ? 1 : 2,
+                    flex: selectedTask != null ? 3 : 5,
                     child: filteredTasks.isEmpty
                       ? Center(
                           child: Text(
                             'No tasks for the selected department and plant.',
-                            style: TextStyle(fontSize: 16, color: AppColors.primary),
+                            style: TextStyle(fontSize: 18, color: AppColors.primary),
                           ),
                         )
                       : ListView.builder(
                           itemCount: filteredTasks.length,
                           itemBuilder: (context, index) {
-                            return MainTaskCard(
-                              task: filteredTasks[index],
-                              onTaskUpdated: _updateTask,
-                              onCardSelected: _selectTask,
-                              isSelected: filteredTasks[index] == selectedTask,
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                              child: MainTaskCard(
+                                task: filteredTasks[index],
+                                onTaskUpdated: _updateTask,
+                                onCardSelected: _selectTask,
+                                isSelected: filteredTasks[index] == selectedTask,
+                              ),
                             );
                           },
                         ),
                   ),
                   if (selectedTask != null)
                     Expanded(
-                      flex: 1,
+                      flex: 4,
                       child: TaskDetailPanel(
                         task: selectedTask!,
                         onClose: () => setState(() => selectedTask = null),
@@ -129,80 +277,91 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
     );
   }
 
-  Widget _buildSelectionHeaders() {
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              'Select Department',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
-            ),
-          ),
-          SizedBox(width: 20),
-          Expanded(
-            child: Text(
-              'Select Plant',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSelectionChips() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: departments.map((department) => _buildChip(
-                department,
-                selectedDepartment == department,
-                () => setState(() => selectedDepartment = department),
-                AppColors.primary,
-              )).toList(),
-            ),
-          ),
-          SizedBox(width: 20),
-          Expanded(
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: plants.map((plant) => _buildChip(
-                plant,
-                selectedPlant == plant,
-                () => setState(() => selectedPlant = plant),
-                AppColors.secondary,
-              )).toList(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildChip(String label, bool isSelected, VoidCallback onTap, Color color) {
-    return InkWell(
-      onTap: onTap,
-      child: Chip(
-        label: Text(
-          label,
+Widget _buildPlantDropdown() {
+  return Container(
+    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2), // Daha minimal padding
+    decoration: BoxDecoration(
+      color: AppColors.veryLightGreen,
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: DropdownButtonHideUnderline(
+      child: DropdownButton<String>(
+        value: selectedPlant,
+        hint: Text(
+          'Select Plant',
           style: TextStyle(
-            color: isSelected ? Colors.white : color,
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            color: AppColors.mediumGreen,
+            fontSize: 12, // Font boyutu küçültüldü
           ),
         ),
-        backgroundColor: isSelected ? color : color.withOpacity(0.1),
+        icon: Icon(
+          Icons.arrow_drop_down,
+          color: AppColors.darkGreen,
+          size: 18, // Icon boyutu küçültüldü
+        ),
+        style: TextStyle(
+          color: AppColors.darkGreen,
+          fontSize: 12, // Dropdown içindeki text boyutu küçültüldü
+        ),
+        dropdownColor: AppColors.almostWhite,
+        onChanged: (String? newValue) {
+          setState(() {
+            selectedPlant = newValue;
+          });
+        },
+        items: plants.map<DropdownMenuItem<String>>((String value) {
+          return DropdownMenuItem<String>(
+            value: value,
+            child: Text(value),
+          );
+        }).toList(),
       ),
-    );
-  }
+    ),
+  );
+}
+
+Widget _buildDepartmentDropdown() {
+  return Container(
+    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2), // Daha minimal padding
+    decoration: BoxDecoration(
+      color: AppColors.veryLightGreen,
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: DropdownButtonHideUnderline(
+      child: DropdownButton<String>(
+        value: selectedDepartment,
+        hint: Text(
+          'Select Department',
+          style: TextStyle(
+            color: AppColors.mediumGreen,
+            fontSize: 12, // Font boyutu küçültüldü
+          ),
+        ),
+        icon: Icon(
+          Icons.arrow_drop_down,
+          color: AppColors.darkGreen,
+          size: 18, // Icon boyutu küçültüldü
+        ),
+        style: TextStyle(
+          color: AppColors.darkGreen,
+          fontSize: 12, // Dropdown içindeki text boyutu küçültüldü
+        ),
+        dropdownColor: AppColors.almostWhite,
+        onChanged: (String? newValue) {
+          setState(() {
+            selectedDepartment = newValue;
+          });
+        },
+        items: departments.map<DropdownMenuItem<String>>((String value) {
+          return DropdownMenuItem<String>(
+            value: value,
+            child: Text(value),
+          );
+        }).toList(),
+      ),
+    ),
+  );
+}
 
   void _selectTask(MainTask task) {
     setState(() {
@@ -218,307 +377,429 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
       }
     });
   }
+void _showCreateTaskDialog() {
+  String taskName = '';
+  String taskDescription = '';
+  List<String> peopleInvolved = [];
+  String? selectedDepartmentForTask;
+  String? selectedPlantForTask;
+  DateTime startDate = DateTime.now();
+  DateTime? dueDate;
 
-  void _showCreateTaskDialog() {
-    String taskName = '';
-    String taskDescription = '';
-    List<String> peopleInvolved = [];
-    String selectedDepartmentForTask = selectedDepartment;
-    String selectedPlantForTask = selectedPlant;
-    DateTime startDate = DateTime.now();
-    DateTime? dueDate;
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: Row(
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return StatefulBuilder(
+        builder: (context, setState) {
+          return Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            child: Container(
+              width: MediaQuery.of(context).size.width * 0.8,
+              height: MediaQuery.of(context).size.height * 0.8,
+              child: Column(
                 children: [
-                  Icon(Icons.add_task, color: AppColors.primary, size: 24),
-                  SizedBox(width: 8),
-                  Text('Create New Task', style: TextStyle(color: AppColors.primary)),
+                  _buildHeader('Create New Task'),
+                  Expanded(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: SingleChildScrollView(
+                            padding: EdgeInsets.all(20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildTextField(
+                                  icon: Icons.title,
+                                  label: 'Task Name',
+                                  onChanged: (value) => taskName = capitalize(value),
+                                ),
+                                SizedBox(height: 16),
+                                _buildTextField(
+                                  icon: Icons.description,
+                                  label: 'Description',
+                                  onChanged: (value) => taskDescription = capitalize(value),
+                                  maxLines: 4,
+                                ),
+                                SizedBox(height: 16),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _buildDropdown(
+                                        icon: Icons.factory,
+                                        label: 'Plant',
+                                        value: selectedPlantForTask,
+                                        items: plants.where((plant) => plant != 'All').toList(),
+                                        onChanged: (value) => setState(() => selectedPlantForTask = value),
+                                      ),
+                                    ),
+                                    SizedBox(width: 16),
+                                    Expanded(
+                                      child: _buildDropdown(
+                                        icon: Icons.business,
+                                        label: 'Department',
+                                        value: selectedDepartmentForTask,
+                                        items: departments.where((department) => department != 'All').toList(),
+                                        onChanged: (value) => setState(() => selectedDepartmentForTask = value),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: 16),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _buildDateField(
+                                        icon: Icons.calendar_today,
+                                        label: 'Start Date',
+                                        date: startDate,
+                                        onTap: () async {
+                                          final picked = await showDatePicker(
+                                            context: context,
+                                            initialDate: startDate,
+                                            firstDate: DateTime(2000),
+                                            lastDate: DateTime(2100),
+                                          );
+                                          if (picked != null) {
+                                            setState(() => startDate = picked);
+                                          }
+                                        },
+                                      ),
+                                    ),
+                                    SizedBox(width: 16),
+                                    Expanded(
+                                      child: _buildDateField(
+                                        icon: Icons.event,
+                                        label: 'Due Date',
+                                        date: dueDate,
+                                        onTap: () async {
+                                          final picked = await showDatePicker(
+                                            context: context,
+                                            initialDate: dueDate ?? DateTime.now(),
+                                            firstDate: DateTime(2000),
+                                            lastDate: DateTime(2100),
+                                          );
+                                          if (picked != null) {
+                                            setState(() => dueDate = picked);
+                                          }
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: Container(
+                            padding: EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: AppColors.almostWhite,
+                              borderRadius: BorderRadius.only(
+                                topRight: Radius.circular(20),
+                                bottomRight: Radius.circular(20),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'People Involved',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                                SizedBox(height: 12),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: [
+                                    ...peopleInvolved.map((person) => _buildPersonChip(
+                                      person,
+                                      onDeleted: () => setState(() => peopleInvolved.remove(person)),
+                                    )),
+                                    _buildAddPersonChip(
+                                      onTap: () => _showAddPersonDialog(
+                                        context,
+                                        (person) => setState(() => peopleInvolved.add(capitalize(person))),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _buildActionButtons(
+                    onCancel: () => Navigator.of(context).pop(),
+                    onCreate: () {
+                      if (taskName.isNotEmpty && taskDescription.isNotEmpty &&
+                          selectedPlantForTask != null && selectedDepartmentForTask != null) {
+                        Navigator.of(context).pop();
+                        _addNewTask(MainTask(
+                          name: taskName,
+                          description: taskDescription,
+                          peopleInvolved: peopleInvolved,
+                          startDate: startDate,
+                          dueDate: dueDate,
+                          subTasks: [],
+                          department: selectedDepartmentForTask!,
+                          plant: selectedPlantForTask!,
+                        ));
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Please fill in all required fields')),
+                        );
+                      }
+                    },
+                  ),
                 ],
               ),
-              content: SingleChildScrollView(
-                child: Container(
-                  width: MediaQuery.of(context).size.width * 0.5,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildTextField(
-                        icon: Icons.title,
-                        label: 'Task Name',
-                        onChanged: (value) => taskName = value,
-                      ),
-                      SizedBox(height: 16),
-                      _buildTextField(
-                        icon: Icons.description,
-                        label: 'Description',
-                        onChanged: (value) => taskDescription = value,
-                        maxLines: 3,
-                      ),
-                      SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildDropdown(
-                              icon: Icons.business,
-                              label: 'Department',
-                              value: selectedDepartmentForTask,
-                              items: departments,
-                              onChanged: (value) {
-                                setState(() {
-                                  selectedDepartmentForTask = value!;
-                                });
-                              },
-                            ),
-                          ),
-                          SizedBox(width: 16),
-                          Expanded(
-                            child: _buildDropdown(
-                              icon: Icons.factory,
-                              label: 'Plant',
-                              value: selectedPlantForTask,
-                              items: plants,
-                              onChanged: (value) {
-                                setState(() {
-                                  selectedPlantForTask = value!;
-                                });
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildDateField(
-                              icon: Icons.calendar_today,
-                              label: 'Start Date',
-                              date: startDate,
-                              onTap: () async {
-                                final picked = await showDatePicker(
-                                  context: context,
-                                  initialDate: startDate,
-                                  firstDate: DateTime(2000),
-                                  lastDate: DateTime(2100),
-                                );
-                                if (picked != null) {
-                                  setState(() {
-                                    startDate = picked;
-                                  });
-                                }
-                              },
-                            ),
-                          ),
-                          SizedBox(width: 16),
-                          Expanded(
-                            child: _buildDateField(
-                              icon: Icons.event,
-                              label: 'Due Date',
-                              date: dueDate,
-                              onTap: () async {
-                                final picked = await showDatePicker(
-                                  context: context,
-                                  initialDate: dueDate ?? DateTime.now(),
-                                  firstDate: DateTime(2000),
-                                  lastDate: DateTime(2100),
-                                );
-                                if (picked != null) {
-                                  setState(() {
-                                    dueDate = picked;
-                                  });
-                                }
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 24),
-                      Text(
-                        'People Involved',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primary),
-                      ),
-                      SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              'Add Person',
-                              style: TextStyle(fontSize: 16, color: AppColors.primary),
-                            ),
-                          ),
-                          SizedBox(width: 8),
-                          ElevatedButton(
-                            onPressed: () {
-                              _showAddPersonDialog(context, (person) {
-                                setState(() {
-                                  peopleInvolved.add(person);
-                                });
-                              });
-                            },
-                            child: Icon(Icons.add, color: Colors.white),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              shape: CircleBorder(),
-                              padding: EdgeInsets.all(12),
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 8),
-                      Container(
-                        height: 150,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: AppColors.primary.withOpacity(0.5)),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: ListView.separated(
-                          padding: EdgeInsets.all(8),
-                          itemCount: peopleInvolved.length,
-                          separatorBuilder: (context, index) => Divider(height: 1),
-                          itemBuilder: (context, index) {
-                            return ListTile(
-                              leading: CircleAvatar(
-                                child: Text(peopleInvolved[index][0]),
-                                backgroundColor: AppColors.primary.withOpacity(0.2),
-                              ),
-                              title: Text(peopleInvolved[index]),
-                              trailing: IconButton(
-                                icon: Icon(Icons.close, size: 18),
-                                onPressed: () {
-                                  setState(() {
-                                    peopleInvolved.removeAt(index);
-                                  });
-                                },
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+String capitalize(String? text) {
+  if (text == null || text.isEmpty) {
+    return '';
+  }
+  return text[0].toUpperCase() + text.substring(1);
+}
+Widget _buildAddPersonChip({required VoidCallback onTap}) {
+  return ActionChip(
+    avatar: Icon(Icons.add, size: 16, color: AppColors.primary),
+    label: Text('Add Person', style: TextStyle(fontSize: 12, color: AppColors.primary)),
+    onPressed: onTap,
+    backgroundColor: Colors.white,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(20),
+      side: BorderSide(color: AppColors.primary),
+    ),
+  );
+}
+
+Widget _buildHeader(String title) {
+  return Container(
+    padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+    decoration: BoxDecoration(
+      color: AppColors.primary,
+      borderRadius: BorderRadius.only(
+        topLeft: Radius.circular(20),
+        topRight: Radius.circular(20),
+      ),
+    ),
+    child: Row(
+      children: [
+        Icon(Icons.add_task, color: Colors.white, size: 24),
+        SizedBox(width: 12),
+        Text(
+          title,
+          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildPersonChip(String person, {required VoidCallback onDeleted}) {
+  return Chip(
+    avatar: CircleAvatar(
+      backgroundColor: AppColors.primary,
+      child: Text(
+        person[0].toUpperCase(),
+        style: TextStyle(fontSize: 12, color: Colors.white),
+      ),
+    ),
+    label: Text(person, style: TextStyle(fontSize: 12)),
+    deleteIcon: Icon(Icons.close, size: 16),
+    onDeleted: onDeleted,
+    backgroundColor: AppColors.veryLightGreen,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+  );
+}
+
+
+Widget _buildTextField({
+  required IconData icon,
+  required String label,
+  required Function(String) onChanged,
+  int maxLines = 1,
+}) {
+  return TextField(
+    decoration: InputDecoration(
+      prefixIcon: Icon(icon, color: AppColors.primary, size: 20),
+      labelText: label,
+      labelStyle: TextStyle(fontSize: 14),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+    ),
+    style: TextStyle(fontSize: 14),
+    onChanged: onChanged,
+    maxLines: maxLines,
+  );
+}
+
+Widget _buildDropdownRow({required Widget firstDropdown, required Widget secondDropdown}) {
+  return Row(
+    children: [
+      Expanded(child: firstDropdown),
+      SizedBox(width: 12),
+      Expanded(child: secondDropdown),
+    ],
+  );
+}
+
+Widget _buildDropdown({
+  required IconData icon,
+  required String label,
+  required String? value,
+  required List<String> items,
+  required Function(String?) onChanged,
+}) {
+  return DropdownButtonFormField<String>(
+    decoration: InputDecoration(
+      prefixIcon: Icon(icon, color: AppColors.primary, size: 20),
+      labelText: label,
+      labelStyle: TextStyle(fontSize: 14),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+    ),
+    value: value,
+    items: items.map((String item) {
+      return DropdownMenuItem<String>(
+        value: item,
+        child: Text(item, style: TextStyle(fontSize: 14)),
+      );
+    }).toList(),
+    onChanged: onChanged,
+    style: TextStyle(fontSize: 14, color: AppColors.textDark),
+  );
+}
+Widget _buildDateField({
+  required IconData icon,
+  required String label,
+  required DateTime? date,
+  required VoidCallback onTap,
+}) {
+  return InkWell(
+    onTap: onTap,
+    child: InputDecorator(
+      decoration: InputDecoration(
+        prefixIcon: Icon(icon, color: AppColors.primary, size: 20),
+        labelText: label,
+        labelStyle: TextStyle(fontSize: 14),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      ),
+      child: Text(
+        date != null ? DateFormat('dd/MM/yyyy').format(date) : 'Select Date',
+        style: TextStyle(fontSize: 14),
+      ),
+    ),
+  );
+}
+
+Widget _buildPeopleInvolvedSection({
+  required List<String> peopleInvolved,
+  required VoidCallback onAddPerson,
+  required Function(int) onRemovePerson,
+}) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            'People Involved',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
+          ),
+          IconButton(
+            icon: Icon(Icons.add, size: 20, color: AppColors.primary),
+            onPressed: onAddPerson,
+          ),
+        ],
+      ),
+      SizedBox(height: 8),
+      Container(
+        height: 100,
+        decoration: BoxDecoration(
+          border: Border.all(color: AppColors.veryLightGreen),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: ListView.builder(
+          padding: EdgeInsets.all(8),
+          itemCount: peopleInvolved.length,
+          itemBuilder: (context, index) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 12,
+                    backgroundColor: AppColors.primary,
+                    child: Text(
+                      peopleInvolved[index][0],
+                      style: TextStyle(fontSize: 10, color: Colors.white),
+                    ),
                   ),
-                ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      peopleInvolved[index],
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.close, size: 16, color: AppColors.textDark),
+                    onPressed: () => onRemovePerson(index),
+                  ),
+                ],
               ),
-              actions: [
-                TextButton(
-                  child: Text('Cancel', style: TextStyle(color: AppColors.primary)),
-                  onPressed: () => Navigator.of(context).pop(),
-                ),
-                ElevatedButton(
-                  child: Text('Create', style: TextStyle(color: Colors.white)),
-                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-                  onPressed: () {
-                    if (taskName.isNotEmpty && taskDescription.isNotEmpty) {
-                      Navigator.of(context).pop();
-                      _addNewTask(MainTask(
-                        name: taskName,
-                        description: taskDescription,
-                        peopleInvolved: peopleInvolved,
-                        startDate: startDate,
-                        dueDate: dueDate,
-                        subTasks: [],
-                        department: selectedDepartmentForTask,
-                        plant: selectedPlantForTask,
-                      ));
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Please fill in all required fields')),
-                      );
-                    }
-                  },
-                ),
-              ],
             );
           },
-        );
-      },
-    );
-  }
-  
-Widget _buildTextField({
-    required IconData icon,
-    required String label,
-    required Function(String) onChanged,
-    int maxLines = 1,
-  }) {
-    return TextField(
-      decoration: InputDecoration(
-        prefixIcon: Icon(icon, color: AppColors.primary, size: 20),
-        labelText: label,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: AppColors.primary),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: AppColors.primary, width: 2),
         ),
       ),
-      onChanged: onChanged,
-      maxLines: maxLines,
-    );
-  }
+    ],
+  );
+}
 
-  Widget _buildDropdown({
-    required IconData icon,
-    required String label,
-    required String value,
-    required List<String> items,
-    required Function(String?) onChanged,
-  }) {
-    return DropdownButtonFormField<String>(
-      decoration: InputDecoration(
-        prefixIcon: Icon(icon, color: AppColors.primary, size: 20),
-        labelText: label,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: AppColors.primary),
+Widget _buildActionButtons({required VoidCallback onCancel, required VoidCallback onCreate}) {
+  return Container(
+    padding: EdgeInsets.all(20),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        TextButton(
+          child: Text('Cancel', style: TextStyle(color: AppColors.primary, fontSize: 14)),
+          onPressed: onCancel,
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide(color: AppColors.primary, width: 2),
-        ),
-      ),
-      value: value,
-      items: items.map((String item) {
-        return DropdownMenuItem<String>(
-          value: item,
-          child: Text(item),
-        );
-      }).toList(),
-      onChanged: onChanged,
-    );
-  }
-
-  Widget _buildDateField({
-    required IconData icon,
-    required String label,
-    required DateTime? date,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      child: InputDecorator(
-        decoration: InputDecoration(
-          prefixIcon: Icon(icon, color: AppColors.primary, size: 20),
-          labelText: label,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide(color: AppColors.primary),
+        SizedBox(width: 16),
+        ElevatedButton(
+          child: Text('Create', style: TextStyle(color: Colors.white, fontSize: 14)),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           ),
+          onPressed: onCreate,
         ),
-        child: Text(
-          date != null ? DateFormat('dd/MM/yyyy').format(date) : 'Select Date',
-          style: TextStyle(fontSize: 16),
-        ),
-      ),
-    );
-  }
+      ],
+    ),
+  );
+}
+  
 
   void _showAddPersonDialog(BuildContext context, Function(String) onAdd) {
     String newPerson = '';
@@ -531,16 +812,23 @@ Widget _buildTextField({
             autofocus: true,
             decoration: InputDecoration(
               hintText: 'Enter person\'s name',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
             ),
             onChanged: (value) => newPerson = value,
           ),
           actions: [
             TextButton(
-              child: Text('Cancel'),
+              child: Text('Cancel', style: TextStyle(color: AppColors.primary)),
               onPressed: () => Navigator.of(context).pop(),
             ),
             ElevatedButton(
-              child: Text('Add'),
+              child: Text('Add', style: TextStyle(color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
               onPressed: () {
                 if (newPerson.isNotEmpty) {
                   onAdd(newPerson);
@@ -560,3 +848,4 @@ Widget _buildTextField({
     });
   }
 }
+
