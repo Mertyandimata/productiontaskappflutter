@@ -1,4 +1,3 @@
-// task_detail_panel.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/tasks.dart';
@@ -19,27 +18,25 @@ class TaskDetailPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: MediaQuery.of(context).size.width * 0.5,
-      color: Colors.white,
+      width: MediaQuery.of(context).size.width * 0.4,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(topLeft: Radius.circular(20), bottomLeft: Radius.circular(20)),
+        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 5, offset: Offset(-2, 0))],
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildHeader(),
           Expanded(
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildDetailSection(),
-                    SizedBox(height: 16),
-                    _buildPeopleInvolvedSection(),
-                    SizedBox(height: 16),
-                    _buildSubtasksSection(),
-                  ],
-                ),
-              ),
+            child: ListView(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              children: [
+                _buildDetailSection(),
+                _buildDivider(),
+                _buildPeopleInvolvedSection(),
+                _buildDivider(),
+                _buildSubtasksSection(),
+              ],
             ),
           ),
         ],
@@ -49,17 +46,20 @@ class TaskDetailPanel extends StatelessWidget {
 
   Widget _buildHeader() {
     return Container(
-      color: AppColors.primary,
-      padding: EdgeInsets.all(16),
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.primary,
+        borderRadius: BorderRadius.only(topLeft: Radius.circular(20)),
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(
             task.name,
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
           ),
           IconButton(
-            icon: Icon(Icons.close, color: Colors.white),
+            icon: Icon(Icons.close, color: Colors.white, size: 20),
             onPressed: onClose,
           ),
         ],
@@ -68,39 +68,42 @@ class TaskDetailPanel extends StatelessWidget {
   }
 
   Widget _buildDetailSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Task Details',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        SizedBox(height: 8),
-        _buildDetailRow('Description', task.description),
-        _buildDetailRow('Start Date', DateFormat('MMM d, yyyy').format(task.startDate)),
-        if (task.dueDate != null)
-          _buildDetailRow('Due Date', DateFormat('MMM d, yyyy').format(task.dueDate!)),
-        _buildDetailRow('Department', task.department),
-        _buildDetailRow('Plant', task.plant),
-      ],
+    return Padding(
+      padding: EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Task Details',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
+          ),
+          SizedBox(height: 8),
+          _buildDetailRow('Description', task.description),
+          _buildDetailRow('Start Date', DateFormat('MMM d, yyyy').format(task.startDate)),
+          if (task.dueDate != null)
+            _buildDetailRow('Due Date', DateFormat('MMM d, yyyy').format(task.dueDate!)),
+          _buildDetailRow('Department', task.department),
+          _buildDetailRow('Plant', task.plant),
+        ],
+      ),
     );
   }
 
   Widget _buildDetailRow(String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 100,
+            width: 80,
             child: Text(
               label,
-              style: TextStyle(fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.mediumGreen),
             ),
           ),
           Expanded(
-            child: Text(value),
+            child: Text(value, style: TextStyle(fontSize: 12, color: AppColors.textDark)),
           ),
         ],
       ),
@@ -108,79 +111,120 @@ class TaskDetailPanel extends StatelessWidget {
   }
 
   Widget _buildPeopleInvolvedSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'People Involved',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: task.peopleInvolved.map((person) => Chip(
-            avatar: CircleAvatar(
-              child: Text(person[0]),
-              backgroundColor: AppColors.primary.withOpacity(0.2),
-            ),
-            label: Text(person),
-            backgroundColor: AppColors.backgroundLight,
-          )).toList(),
-        ),
-      ],
+    return Padding(
+      padding: EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'People Involved',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
+          ),
+          SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: task.peopleInvolved.map((person) => _buildPersonChip(person)).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPersonChip(String person) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppColors.veryLightGreen,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircleAvatar(
+            radius: 10,
+            backgroundColor: AppColors.primary,
+            child: Text(person[0], style: TextStyle(fontSize: 10, color: Colors.white)),
+          ),
+          SizedBox(width: 6),
+          Text(person, style: TextStyle(fontSize: 12, color: AppColors.textDark)),
+        ],
+      ),
     );
   }
 
   Widget _buildSubtasksSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Subtasks',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        SizedBox(height: 8),
-        ...task.subTasks.map((subTask) => _buildSubTaskTile(subTask)),
-        SizedBox(height: 8),
-        ElevatedButton(
-          onPressed: () {
-            // Implement create subtask functionality
-          },
-          child: Text('Create Subtask'),
-          style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-        ),
-      ],
+    return Padding(
+      padding: EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Subtasks',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
+              ),
+              _buildCreateSubtaskButton(),
+            ],
+          ),
+          SizedBox(height: 8),
+          ...task.subTasks.map((subTask) => _buildSubTaskTile(subTask)),
+        ],
+      ),
     );
   }
 
   Widget _buildSubTaskTile(SubTask subTask) {
-    return ListTile(
-      contentPadding: EdgeInsets.symmetric(horizontal: 0, vertical: 4),
-      leading: _getStatusIcon(subTask.status),
-      title: Text(subTask.name),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Assigned to: ${subTask.assignedTo}'),
-          Text('Due: ${DateFormat('MMM d, yyyy').format(subTask.dueDate)}'),
-          Text('Note: ${subTask.note}'),
-        ],
+    return Container(
+      margin: EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: AppColors.almostWhite,
+        borderRadius: BorderRadius.circular(8),
       ),
-      trailing: PopupMenuButton<SubTaskStatus>(
-        onSelected: (SubTaskStatus result) {
-          subTask.status = result;
-          onTaskUpdated(task);
-        },
-        itemBuilder: (BuildContext context) => <PopupMenuEntry<SubTaskStatus>>[
-          for (var status in SubTaskStatus.values)
-            PopupMenuItem<SubTaskStatus>(
-              value: status,
-              child: Text(_getStatusString(status)),
-            ),
-        ],
+      child: ListTile(
+        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        leading: _getStatusIcon(subTask.status),
+        title: Text(subTask.name, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+        subtitle: Text(
+          '${subTask.assignedTo} • Due: ${DateFormat('MMM d').format(subTask.dueDate)}',
+          style: TextStyle(fontSize: 11),
+        ),
+        trailing: PopupMenuButton<SubTaskStatus>(
+          icon: Icon(Icons.more_vert, size: 18),
+          onSelected: (SubTaskStatus result) {
+            subTask.status = result;
+            onTaskUpdated(task);
+          },
+          itemBuilder: (BuildContext context) => <PopupMenuEntry<SubTaskStatus>>[
+            for (var status in SubTaskStatus.values)
+              PopupMenuItem<SubTaskStatus>(
+                value: status,
+                child: Text(_getStatusString(status), style: TextStyle(fontSize: 12)),
+              ),
+          ],
+        ),
       ),
     );
+  }
+
+  Widget _buildCreateSubtaskButton() {
+    return TextButton.icon(
+      onPressed: () {
+        // Implement create subtask functionality
+      },
+      icon: Icon(Icons.add, size: 16, color: AppColors.primary),
+      label: Text('Add', style: TextStyle(fontSize: 12, color: AppColors.primary)),
+      style: TextButton.styleFrom(
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+    );
+  }
+
+  Widget _buildDivider() {
+    return Divider(height: 1, thickness: 1, color: AppColors.veryLightGreen);
   }
 
   Widget _getStatusIcon(SubTaskStatus status) {
@@ -206,7 +250,7 @@ class TaskDetailPanel extends StatelessWidget {
         break;
     }
 
-    return Icon(iconData, color: color);
+    return Icon(iconData, color: color, size: 18);
   }
 
   String _getStatusString(SubTaskStatus status) {

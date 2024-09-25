@@ -26,5 +26,4 @@ flutter:
 
   # Burada assets kısmı düzeltilmiş şekilde
   assets:
-    - assets/logo1.png
     - assets/logo2.png

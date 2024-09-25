@@ -12,7 +12,6 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Task Management App',
       theme: ThemeData(
-        primarySwatch: AppColors.primarySwatch,
         scaffoldBackgroundColor: AppColors.backgroundLight,
       ),
       home: TaskManagementPage(),
