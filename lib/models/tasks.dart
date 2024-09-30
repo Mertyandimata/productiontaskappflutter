@@ -1,24 +1,24 @@
-
-
 class MainTask {
-  final String name;
-  final String description;
-  final List<String> peopleInvolved;
-  final DateTime startDate;
-  final DateTime? dueDate;  // Yeni eklenen alan
-  final List<SubTask> subTasks;
-  final String department;
-  final String plant;
+  String name;
+  String description;
+  List<String> peopleInvolved;
+  DateTime startDate;
+  DateTime? dueDate;
+  List<SubTask> subTasks;
+  String department;
+  String plant;
+  String? imageData; // Yeni eklenen alan
 
   MainTask({
     required this.name,
     required this.description,
     required this.peopleInvolved,
     required this.startDate,
-    this.dueDate,  // Opsiyonel parametre olarak eklendi
+    this.dueDate,
     required this.subTasks,
     required this.department,
     required this.plant,
+    this.imageData,
   });
 
   double get completionRate {
@@ -31,15 +31,41 @@ class MainTask {
     int completedTasks = subTasks.where((task) => task.status == SubTaskStatus.done).length;
     return '$completedTasks/${subTasks.length}';
   }
+
+  // Kopyalama metodu, düzenleme işlemleri için kullanışlı olacak
+  MainTask copyWith({
+    String? name,
+    String? description,
+    List<String>? peopleInvolved,
+    DateTime? startDate,
+    DateTime? dueDate,
+    List<SubTask>? subTasks,
+    String? department,
+    String? plant,
+    String? imageData,
+  }) {
+    return MainTask(
+      name: name ?? this.name,
+      description: description ?? this.description,
+      peopleInvolved: peopleInvolved ?? this.peopleInvolved,
+      startDate: startDate ?? this.startDate,
+      dueDate: dueDate ?? this.dueDate,
+      subTasks: subTasks ?? this.subTasks,
+      department: department ?? this.department,
+      plant: plant ?? this.plant,
+      imageData: imageData ?? this.imageData,
+    );
+  }
 }
 
 class SubTask {
-  final String id;  // Unique identifier for the subtask
-  late final String name;
+  final String id;
+  String name;
   String assignedTo;
   DateTime dueDate;
   String note;
   SubTaskStatus status;
+  String? imageData;
 
   SubTask({
     required this.id,
@@ -48,15 +74,16 @@ class SubTask {
     required this.dueDate,
     required this.note,
     this.status = SubTaskStatus.backlog,
+    this.imageData,
   });
 
-  // Optional: Add a method to create a copy of the SubTask with updated fields
   SubTask copyWith({
     String? name,
     String? assignedTo,
     DateTime? dueDate,
     String? note,
     SubTaskStatus? status,
+    String? imageData,
   }) {
     return SubTask(
       id: this.id,
@@ -65,6 +92,7 @@ class SubTask {
       dueDate: dueDate ?? this.dueDate,
       note: note ?? this.note,
       status: status ?? this.status,
+      imageData: imageData ?? this.imageData,
     );
   }
 }

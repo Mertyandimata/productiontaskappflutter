@@ -16,6 +16,8 @@ dependencies:
   flutter_barcode_scanner: ^2.0.0
   postgres: ^3.3.0
   fl_chart: ^0.69.0
+  image_picker: ^1.1.2
+  file_picker: ^8.1.2
 
 dev_dependencies:
   flutter_test:

@@ -1,4 +1,9 @@
+import 'dart:convert';
+import 'dart:io';
+import 'dart:html' as html;
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../models/tasks.dart';
@@ -83,45 +88,90 @@ Widget build(BuildContext context) {
     );
   }
 
-  Widget _buildDetailSection() {
-    return Padding(
-      padding: EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Task Details',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
-          ),
-          SizedBox(height: 8),
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildDetailRow('Description', widget.task.description),
-                      _buildDetailRow('Start Date', DateFormat('MMM d, yyyy').format(widget.task.startDate)),
-                      if (widget.task.dueDate != null)
-                        _buildDetailRow('Due Date', DateFormat('MMM d, yyyy').format(widget.task.dueDate!)),
-                      _buildDetailRow('Department', widget.task.department),
-                      _buildDetailRow('Plant', widget.task.plant),
-                    ],
-                  ),
+ Widget _buildDetailSection() {
+  return Padding(
+    padding: EdgeInsets.all(16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Task Details',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
+        ),
+        SizedBox(height: 8),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildDetailRow('Description', widget.task.description),
+                    _buildDetailRow('Start Date', DateFormat('MMM d, yyyy').format(widget.task.startDate)),
+                    if (widget.task.dueDate != null)
+                      _buildDetailRow('Due Date', DateFormat('MMM d, yyyy').format(widget.task.dueDate!)),
+                    _buildDetailRow('Department', widget.task.department),
+                    _buildDetailRow('Plant', widget.task.plant),
+                  ],
                 ),
-                SizedBox(width: 16),
-                Expanded(
-                  child: _buildStatusDonutChart(),
-                ),
-              ],
-            ),
+              ),
+              SizedBox(width: 16),
+              Expanded(
+                child: _buildStatusDonutChart(),
+              ),
+            ],
           ),
-        ],
+        ),
+        SizedBox(height: 16),
+        if (widget.task.imageData != null)
+          _buildTaskImage(widget.task.imageData!),
+      ],
+    ),
+  );
+}Widget _buildTaskImage(String imageData) {
+  return GestureDetector(
+    onTap: () => _showEnlargedImage(imageData),
+    child: Container(
+      width: 150,
+      height: 150,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        image: DecorationImage(
+          image: MemoryImage(base64Decode(imageData)),
+          fit: BoxFit.cover,
+        ),
       ),
-    );
-  }
+    ),
+  );
+}
+
+void _showEnlargedImage(String imageData) {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return Dialog(
+        child: Stack(
+          children: [
+            Image.memory(
+              base64Decode(imageData),
+              fit: BoxFit.contain,
+            ),
+            Positioned(
+              right: 0,
+              top: 0,
+              child: IconButton(
+                icon: Icon(Icons.close, color: Colors.white),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
 
   Widget _buildDetailRow(String label, String value) {
     return Padding(
@@ -339,29 +389,29 @@ Widget build(BuildContext context) {
   }
 
   Widget _buildSubtasksSection() {
-    return Padding(
-      padding: EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Subtasks',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
-              ),
-              _buildCreateSubtaskButton(),
-            ],
-          ),
-          SizedBox(height: 8),
-          ...widget.task.subTasks.map((subTask) => _buildSubTaskTile(subTask)),
-        ],
-      ),
-    );
-  }
+  return Padding(
+    padding: EdgeInsets.all(16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Subtasks',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
+            ),
+            _buildCreateSubtaskButton(),
+          ],
+        ),
+        SizedBox(height: 8),
+        ...widget.task.subTasks.map((subTask) => _buildSubTaskTile(subTask)),
+      ],
+    ),
+  );
+}
 
-  Widget _buildSubTaskTile(SubTask subTask) {
+ Widget _buildSubTaskTile(SubTask subTask) {
     return Container(
       margin: EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
@@ -370,46 +420,74 @@ Widget build(BuildContext context) {
       ),
       child: ListTile(
         contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        leading: _getStatusIcon(subTask.status),
+        leading: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _getStatusIcon(subTask.status),
+            SizedBox(width: 8),
+            if (subTask.imageData != null)
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  image: DecorationImage(
+                    image: MemoryImage(base64Decode(subTask.imageData!)),
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+          ],
+        ),
         title: Text(subTask.name, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
         subtitle: Text(
           '${subTask.assignedTo} • Due: ${DateFormat('MMM d').format(subTask.dueDate)}',
           style: TextStyle(fontSize: 11),
         ),
-        trailing: PopupMenuButton<SubTaskStatus>(
-          icon: Icon(Icons.more_vert, size: 18),
-          onSelected: (SubTaskStatus result) {
-            setState(() {
-              subTask.status = result;
-              widget.onTaskUpdated(widget.task);
-            });
-          },
-          itemBuilder: (BuildContext context) => <PopupMenuEntry<SubTaskStatus>>[
-            for (var status in SubTaskStatus.values)
-              PopupMenuItem<SubTaskStatus>(
-                value: status,
-                child: Text(_getStatusString(status), style: TextStyle(fontSize: 12)),
-              ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: Icon(Icons.edit, size: 18),
+              onPressed: () => _handleEditSubTask(subTask),
+            ),
+            IconButton(
+              icon: Icon(Icons.delete, size: 18),
+              onPressed: () => _handleDeleteSubTask(subTask),
+            ),
+            PopupMenuButton<SubTaskStatus>(
+              icon: Icon(Icons.more_vert, size: 18),
+              onSelected: (SubTaskStatus result) {
+                setState(() {
+                  subTask.status = result;
+                  widget.onTaskUpdated(widget.task);
+                });
+              },
+              itemBuilder: (BuildContext context) => <PopupMenuEntry<SubTaskStatus>>[
+                for (var status in SubTaskStatus.values)
+                  PopupMenuItem<SubTaskStatus>(
+                    value: status,
+                    child: Text(_getStatusString(status), style: TextStyle(fontSize: 12)),
+                  ),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildCreateSubtaskButton() {
-    return TextButton.icon(
-      onPressed: () {
-        // TODO: Implement create subtask functionality
-      },
-      icon: Icon(Icons.add, size: 16, color: AppColors.primary),
-      label: Text('Add', style: TextStyle(fontSize: 12, color: AppColors.primary)),
-      style: TextButton.styleFrom(
-        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      ),
-    );
-  }
-
+Widget _buildCreateSubtaskButton() {
+  return TextButton.icon(
+    onPressed: _handleCreateSubTask,
+    icon: Icon(Icons.add, size: 16, color: AppColors.primary),
+    label: Text('Add', style: TextStyle(fontSize: 12, color: AppColors.primary)),
+    style: TextButton.styleFrom(
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    ),
+  );
+}
   Widget _buildDivider() {
     return Divider(height: 1, thickness: 1, color: AppColors.veryLightGreen);
   }
@@ -449,119 +527,220 @@ Widget _getStatusIcon(SubTaskStatus status) {
   }
 
   void _handleCreateSubTask() {
-    // Bu fonksiyon, yeni bir alt görev oluşturma işlemini gerçekleştirecek
-    // Örnek bir implementasyon:
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        String newSubTaskName = '';
-        return AlertDialog(
-          title: Text('Create New Subtask'),
-          content: TextField(
-            onChanged: (value) {
-              newSubTaskName = value;
-            },
-            decoration: InputDecoration(hintText: "Enter subtask name"),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            TextButton(
-              child: Text('Create'),
-              onPressed: () {
-                if (newSubTaskName.isNotEmpty) {
-                  setState(() {
-                    widget.task.subTasks.add(SubTask(
-                      id: DateTime.now().millisecondsSinceEpoch.toString(),
-                      name: newSubTaskName,
-                      status: SubTaskStatus.backlog,
-                      assignedTo: 'Unassigned',
-                      dueDate: DateTime.now().add(Duration(days: 7)), note: '',
-                    ));
-                    widget.onTaskUpdated(widget.task);
-                  });
-                  Navigator.of(context).pop();
-                }
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
+  _showSubTaskDialog();
+}
   void _handleEditSubTask(SubTask subTask) {
-    // Bu fonksiyon, mevcut bir alt görevi düzenleme işlemini gerçekleştirecek
-    // Örnek bir implementasyon:
+  _showSubTaskDialog(subTask: subTask);
+}
+
+  void _showSubTaskDialog({SubTask? subTask}) {
+    String name = subTask?.name ?? '';
+    String? assignedTo = subTask?.assignedTo;
+    DateTime dueDate = subTask?.dueDate ?? DateTime.now().add(Duration(days: 7));
+    String note = subTask?.note ?? '';
+    SubTaskStatus status = subTask?.status ?? SubTaskStatus.backlog;
+    String? imageData = subTask?.imageData;
+
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        String editedSubTaskName = subTask.name;
-        return AlertDialog(
-          title: Text('Edit Subtask'),
-          content: TextField(
-            onChanged: (value) {
-              editedSubTaskName = value;
-            },
-            decoration: InputDecoration(hintText: "Enter new subtask name"),
-            controller: TextEditingController(text: subTask.name),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            TextButton(
-              child: Text('Save'),
-              onPressed: () {
-                if (editedSubTaskName.isNotEmpty) {
-                  setState(() {
-                    subTask.name = editedSubTaskName;
-                    widget.onTaskUpdated(widget.task);
-                  });
-                  Navigator.of(context).pop();
-                }
-              },
-            ),
-          ],
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text(subTask == null ? 'Create New Subtask' : 'Edit Subtask'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      onChanged: (value) => name = value,
+                      decoration: InputDecoration(labelText: 'Subtask Name'),
+                      controller: TextEditingController(text: name),
+                    ),
+                    DropdownButtonFormField<String>(
+                      value: assignedTo,
+                      items: widget.task.peopleInvolved.map((String person) {
+                        return DropdownMenuItem<String>(
+                          value: person,
+                          child: Text(person),
+                        );
+                      }).toList(),
+                      onChanged: (String? newValue) {
+                        setState(() {
+                          assignedTo = newValue;
+                        });
+                      },
+                      decoration: InputDecoration(labelText: 'Assigned To'),
+                    ),
+                    ListTile(
+                      title: Text('Due Date'),
+                      subtitle: Text(DateFormat('MMM d, yyyy').format(dueDate)),
+                      trailing: Icon(Icons.calendar_today),
+                      onTap: () async {
+                        final DateTime? picked = await showDatePicker(
+                          context: context,
+                          initialDate: dueDate,
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime.now().add(Duration(days: 365)),
+                        );
+                        if (picked != null && picked != dueDate) {
+                          setState(() {
+                            dueDate = picked;
+                          });
+                        }
+                      },
+                    ),
+                    TextField(
+                      onChanged: (value) => note = value,
+                      decoration: InputDecoration(labelText: 'Note'),
+                      controller: TextEditingController(text: note),
+                      maxLines: 3,
+                    ),
+                    DropdownButtonFormField<SubTaskStatus>(
+                      value: status,
+                      items: SubTaskStatus.values.map((SubTaskStatus status) {
+                        return DropdownMenuItem<SubTaskStatus>(
+                          value: status,
+                          child: Text(_getStatusString(status)),
+                        );
+                      }).toList(),
+                      onChanged: (SubTaskStatus? newValue) {
+                        setState(() {
+                          status = newValue!;
+                        });
+                      },
+                      decoration: InputDecoration(labelText: 'Status'),
+                    ),
+                    SizedBox(height: 16),
+                    _buildImageUpload(
+                      imageData: imageData,
+                      onImageSelected: (data) => setState(() => imageData = data),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  child: Text('Cancel'),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+                TextButton(
+                  child: Text(subTask == null ? 'Create' : 'Save'),
+                  onPressed: () {
+                    if (name.isNotEmpty && assignedTo != null) {
+                      SubTask newSubTask = SubTask(
+                        id: subTask?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+                        name: name,
+                        assignedTo: assignedTo!,
+                        dueDate: dueDate,
+                        note: note,
+                        status: status,
+                        imageData: imageData,
+                      );
+                      setState(() {
+                        if (subTask == null) {
+                          widget.task.subTasks.add(newSubTask);
+                        } else {
+                          int index = widget.task.subTasks.indexWhere((task) => task.id == subTask.id);
+                          if (index != -1) {
+                            widget.task.subTasks[index] = newSubTask;
+                          }
+                        }
+                        widget.onTaskUpdated(widget.task);
+                      });
+                      Navigator.of(context).pop();
+                    }
+                  },
+                ),
+              ],
+            );
+          },
         );
       },
     );
   }
+  
+   Widget _buildImageUpload({String? imageData, required Function(String?) onImageSelected}) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        'Task Image',
+        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
+      ),
+      SizedBox(height: 8),
+      InkWell(
+        onTap: () async {
+          final html.FileUploadInputElement input = html.FileUploadInputElement()..accept = 'image/*';
+          input.click();
 
-  void _handleDeleteSubTask(SubTask subTask) {
-    // Bu fonksiyon, bir alt görevi silme işlemini gerçekleştirecek
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Delete Subtask'),
-          content: Text('Are you sure you want to delete this subtask?'),
-          actions: <Widget>[
-            TextButton(
-              child: Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            TextButton(
-              child: Text('Delete'),
-              onPressed: () {
-                setState(() {
-                  widget.task.subTasks.remove(subTask);
-                  widget.onTaskUpdated(widget.task);
-                });
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }  }
+          input.onChange.listen((event) {
+            final file = input.files!.first;
+            final reader = html.FileReader();
+
+            reader.onLoadEnd.listen((event) {
+              setState(() {
+                final result = reader.result as String;
+                final base64Image = result.split(',').last;
+                onImageSelected(base64Image);
+              });
+            });
+
+            reader.readAsDataUrl(file);
+          });
+        },
+        child: Container(
+          height: 100,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            border: Border.all(color: AppColors.veryLightGreen),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: imageData != null
+              ? ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.memory(
+                    base64Decode(imageData),
+                    fit: BoxFit.cover,
+                  ),
+                )
+              : Center(
+                  child: Icon(
+                    Icons.add_photo_alternate,
+                    size: 40,
+                    color: AppColors.primary,
+                  ),
+                ),
+        ),
+      ),
+    ],
+  );
+}
+   
+   void _handleDeleteSubTask(SubTask subTask) {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: Text('Delete Subtask'),
+        content: Text('Are you sure you want to delete this subtask?'),
+        actions: [
+          TextButton(
+            child: Text('Cancel'),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          TextButton(
+            child: Text('Delete'),
+            onPressed: () {
+              setState(() {
+                widget.task.subTasks.removeWhere((task) => task.id == subTask.id);
+                widget.onTaskUpdated(widget.task);
+              });
+              Navigator.of(context).pop();
+            },
+          ),
+        ],
+      );
+    },
+  );
+} }

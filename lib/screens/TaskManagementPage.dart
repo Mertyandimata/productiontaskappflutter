@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/tasks.dart';
@@ -5,6 +8,9 @@ import '../utils/app_colors.dart';
 import '../widgets/main_task_card.dart';
 import '../widgets/task_detail_panel.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import 'dart:html' as html;
 
 class TaskManagementPage extends StatefulWidget {
   @override
@@ -16,16 +22,7 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
   List<String> departments = ['All', 'Hot Water', 'Cold Water', 'Machining', 'Pressing'];
   String? selectedPlant;
   List<String> plants = ['All', 'DM1', 'DS5', 'DC3', 'DB4'];
-    @override
-  void initState() {
-    super.initState();
-    if (mainTasks.isNotEmpty) {
-      // İlk görev otomatik olarak seçiliyor
-      mainTasks.sort((a, b) => b.startDate.compareTo(a.startDate));
-      selectedTask = mainTasks[0];
-    }
-  }
-  
+  MainTask? selectedTask;
 List<MainTask> mainTasks = [
   MainTask(
     name: 'Optimize Production Line',
@@ -127,6 +124,22 @@ List<MainTask> mainTasks = [
         note: 'Show potential areas for reducing energy usage',
         status: SubTaskStatus.backlog,
       ),
+      SubTask(
+        id: '13',
+        name: 'Present findings to management',
+        assignedTo: 'Diana Prince',
+        dueDate: DateTime.now().add(Duration(days: 20)),
+        note: 'Show potential areas for reducing energy usage',
+        status: SubTaskStatus.backlog,
+      ),
+      SubTask(
+        id: '14',
+        name: 'Present findings to management',
+        assignedTo: 'Diana Prince',
+        dueDate: DateTime.now().add(Duration(days: 20)),
+        note: 'Show potential areas for reducing energy usage',
+        status: SubTaskStatus.backlog,
+      ),
     ],
   ),
   MainTask(
@@ -150,8 +163,28 @@ List<MainTask> mainTasks = [
   ),
 ];
 
+  @override
+  void initState() {
+    super.initState();
+    if (mainTasks.isNotEmpty) {
+      mainTasks.sort((a, b) => b.startDate.compareTo(a.startDate));
+      selectedTask = mainTasks[0];
+    }
+  }
 
-  MainTask? selectedTask;
+  Future<String?> pickAndEncodeImage() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      withData: true,
+    );
+
+    if (result != null) {
+      PlatformFile file = result.files.first;
+      String base64Image = base64Encode(file.bytes!);
+      return base64Image;
+    }
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -163,13 +196,13 @@ List<MainTask> mainTasks = [
     return Scaffold(
       appBar: AppBar(
         systemOverlayStyle: SystemUiOverlayStyle.dark,
-        toolbarHeight: 80, // Increased height for better spacing
+        toolbarHeight: 80,
         title: Row(
           children: [
             Image.asset(
               'assets/logo2.png',
-              height: 90, // Adjusted height
-              width: 120, // Adjusted width
+              height: 90,
+              width: 120,
             ),
             SizedBox(width: 10),
             Text(
@@ -177,7 +210,7 @@ List<MainTask> mainTasks = [
               style: TextStyle(
                 color: AppColors.darkGreen,
                 fontWeight: FontWeight.bold,
-                fontSize: 20, // Adjusted font size
+                fontSize: 20,
               ),
             ),
           ],
@@ -219,7 +252,7 @@ List<MainTask> mainTasks = [
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primary),
                   ),
                   ElevatedButton.icon(
-                    onPressed: _showCreateTaskDialog,
+                    onPressed: () => _showCreateTaskDialog(),
                     icon: Icon(Icons.add, color: Colors.white),
                     label: Text('Create Task', style: TextStyle(color: Colors.white)),
                     style: ElevatedButton.styleFrom(
@@ -253,6 +286,8 @@ List<MainTask> mainTasks = [
                                 task: filteredTasks[index],
                                 onTaskUpdated: _updateTask,
                                 onCardSelected: _selectTask,
+                                onEditTask: _editMainTask,
+                                onDeleteTask: _deleteMainTask,
                                 isSelected: filteredTasks[index] == selectedTask,
                               ),
                             );
@@ -279,7 +314,7 @@ List<MainTask> mainTasks = [
 
 Widget _buildPlantDropdown() {
   return Container(
-    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2), // Daha minimal padding
+    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
     decoration: BoxDecoration(
       color: AppColors.veryLightGreen,
       borderRadius: BorderRadius.circular(8),
@@ -291,17 +326,17 @@ Widget _buildPlantDropdown() {
           'Select Plant',
           style: TextStyle(
             color: AppColors.mediumGreen,
-            fontSize: 12, // Font boyutu küçültüldü
+            fontSize: 12,
           ),
         ),
         icon: Icon(
           Icons.arrow_drop_down,
           color: AppColors.darkGreen,
-          size: 18, // Icon boyutu küçültüldü
+          size: 18,
         ),
         style: TextStyle(
           color: AppColors.darkGreen,
-          fontSize: 12, // Dropdown içindeki text boyutu küçültüldü
+          fontSize: 12,
         ),
         dropdownColor: AppColors.almostWhite,
         onChanged: (String? newValue) {
@@ -322,7 +357,7 @@ Widget _buildPlantDropdown() {
 
 Widget _buildDepartmentDropdown() {
   return Container(
-    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2), // Daha minimal padding
+    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
     decoration: BoxDecoration(
       color: AppColors.veryLightGreen,
       borderRadius: BorderRadius.circular(8),
@@ -334,17 +369,17 @@ Widget _buildDepartmentDropdown() {
           'Select Department',
           style: TextStyle(
             color: AppColors.mediumGreen,
-            fontSize: 12, // Font boyutu küçültüldü
+            fontSize: 12,
           ),
         ),
         icon: Icon(
           Icons.arrow_drop_down,
           color: AppColors.darkGreen,
-          size: 18, // Icon boyutu küçültüldü
+          size: 18,
         ),
         style: TextStyle(
           color: AppColors.darkGreen,
-          fontSize: 12, // Dropdown içindeki text boyutu küçültüldü
+          fontSize: 12,
         ),
         dropdownColor: AppColors.almostWhite,
         onChanged: (String? newValue) {
@@ -374,17 +409,22 @@ Widget _buildDepartmentDropdown() {
       int index = mainTasks.indexWhere((task) => task.name == updatedTask.name);
       if (index != -1) {
         mainTasks[index] = updatedTask;
+        if (selectedTask != null && selectedTask!.name == updatedTask.name) {
+          selectedTask = updatedTask;
+        }
       }
     });
   }
-void _showCreateTaskDialog() {
-  String taskName = '';
-  String taskDescription = '';
-  List<String> peopleInvolved = [];
-  String? selectedDepartmentForTask;
-  String? selectedPlantForTask;
-  DateTime startDate = DateTime.now();
-  DateTime? dueDate;
+
+  void _showCreateTaskDialog({MainTask? taskToEdit}) {
+  String taskName = taskToEdit?.name ?? '';
+  String taskDescription = taskToEdit?.description ?? '';
+  List<String> peopleInvolved = List.from(taskToEdit?.peopleInvolved ?? []);
+  String? selectedDepartmentForTask = taskToEdit?.department;
+  String? selectedPlantForTask = taskToEdit?.plant;
+  DateTime startDate = taskToEdit?.startDate ?? DateTime.now();
+  DateTime? dueDate = taskToEdit?.dueDate;
+  String? imageData = taskToEdit?.imageData;
 
   showDialog(
     context: context,
@@ -398,7 +438,7 @@ void _showCreateTaskDialog() {
               height: MediaQuery.of(context).size.height * 0.8,
               child: Column(
                 children: [
-                  _buildHeader('Create New Task'),
+                  _buildHeader(taskToEdit == null ? 'Create New Task' : 'Edit Task'),
                   Expanded(
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -413,13 +453,15 @@ void _showCreateTaskDialog() {
                                 _buildTextField(
                                   icon: Icons.title,
                                   label: 'Task Name',
-                                  onChanged: (value) => taskName = capitalize(value),
+                                  initialValue: taskName,
+                                  onChanged: (value) => taskName = value,
                                 ),
                                 SizedBox(height: 16),
                                 _buildTextField(
                                   icon: Icons.description,
                                   label: 'Description',
-                                  onChanged: (value) => taskDescription = capitalize(value),
+                                  initialValue: taskDescription,
+                                  onChanged: (value) => taskDescription = value,
                                   maxLines: 4,
                                 ),
                                 SizedBox(height: 16),
@@ -488,6 +530,11 @@ void _showCreateTaskDialog() {
                                     ),
                                   ],
                                 ),
+                                SizedBox(height: 16),
+                                _buildImageUpload(
+                                  imageData: imageData,
+                                  onImageSelected: (data) => setState(() => imageData = data),
+                                ),
                               ],
                             ),
                           ),
@@ -526,7 +573,7 @@ void _showCreateTaskDialog() {
                                     _buildAddPersonChip(
                                       onTap: () => _showAddPersonDialog(
                                         context,
-                                        (person) => setState(() => peopleInvolved.add(capitalize(person))),
+                                        (person) => setState(() => peopleInvolved.add(person)),
                                       ),
                                     ),
                                   ],
@@ -543,17 +590,18 @@ void _showCreateTaskDialog() {
                     onCreate: () {
                       if (taskName.isNotEmpty && taskDescription.isNotEmpty &&
                           selectedPlantForTask != null && selectedDepartmentForTask != null) {
-                        Navigator.of(context).pop();
-                        _addNewTask(MainTask(
+                        MainTask newTask = MainTask(
                           name: taskName,
                           description: taskDescription,
                           peopleInvolved: peopleInvolved,
                           startDate: startDate,
                           dueDate: dueDate,
-                          subTasks: [],
+                          subTasks: taskToEdit?.subTasks ?? [],
                           department: selectedDepartmentForTask!,
                           plant: selectedPlantForTask!,
-                        ));
+                          imageData: imageData,
+                        );
+                        Navigator.of(context).pop(newTask);
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text('Please fill in all required fields')),
@@ -568,133 +616,247 @@ void _showCreateTaskDialog() {
         },
       );
     },
-  );
-}
-String capitalize(String? text) {
-  if (text == null || text.isEmpty) {
-    return '';
-  }
-  return text[0].toUpperCase() + text.substring(1);
-}
-Widget _buildAddPersonChip({required VoidCallback onTap}) {
-  return ActionChip(
-    avatar: Icon(Icons.add, size: 16, color: AppColors.primary),
-    label: Text('Add Person', style: TextStyle(fontSize: 12, color: AppColors.primary)),
-    onPressed: onTap,
-    backgroundColor: Colors.white,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(20),
-      side: BorderSide(color: AppColors.primary),
-    ),
-  );
+  ).then((result) {
+    if (result != null) {
+      if (taskToEdit == null) {
+        _addNewTask(result);
+      } else {
+        _updateTask(result);
+      }
+    }
+  });
 }
 
-Widget _buildHeader(String title) {
-  return Container(
-    padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-    decoration: BoxDecoration(
-      color: AppColors.primary,
-      borderRadius: BorderRadius.only(
-        topLeft: Radius.circular(20),
-        topRight: Radius.circular(20),
-      ),
+Widget _buildTaskCard(MainTask task) {
+  return Card(
+    elevation: 2,
+    margin: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+    child: InkWell(
+      onTap: () => _selectTask(task),
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    task.name,
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (task.imageData != null)
+  ClipRRect(
+    borderRadius: BorderRadius.circular(4),
+    child: Image.memory(
+      base64Decode(task.imageData!),
+      width: 50,
+      height: 50,
+      fit: BoxFit.cover,
     ),
-    child: Row(
-      children: [
-        Icon(Icons.add_task, color: Colors.white, size: 24),
-        SizedBox(width: 12),
-        Text(
-          title,
-          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+  ),
+              ],
+            ),
+            SizedBox(height: 8),
+            Text(
+              task.description,
+              style: TextStyle(fontSize: 14),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Due: ${DateFormat('MMM d, y').format(task.dueDate ?? task.startDate)}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+                Text(
+                  '${task.department} - ${task.plant}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+            SizedBox(height: 8),
+            LinearProgressIndicator(
+              value: task.completionRate,
+              backgroundColor: Colors.grey[200],
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+            ),
+            SizedBox(height: 4),
+            Text(
+              '${(task.completionRate * 100).toStringAsFixed(0)}% Complete',
+              style: TextStyle(fontSize: 12, color: AppColors.primary),
+            ),
+          ],
         ),
-      ],
-    ),
-  );
-}
-
-Widget _buildPersonChip(String person, {required VoidCallback onDeleted}) {
-  return Chip(
-    avatar: CircleAvatar(
-      backgroundColor: AppColors.primary,
-      child: Text(
-        person[0].toUpperCase(),
-        style: TextStyle(fontSize: 12, color: Colors.white),
       ),
     ),
-    label: Text(person, style: TextStyle(fontSize: 12)),
-    deleteIcon: Icon(Icons.close, size: 16),
-    onDeleted: onDeleted,
-    backgroundColor: AppColors.veryLightGreen,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
   );
 }
 
+  void _editMainTask(MainTask task) {
+    _showCreateTaskDialog(taskToEdit: task);
+  }
 
-Widget _buildTextField({
-  required IconData icon,
-  required String label,
-  required Function(String) onChanged,
-  int maxLines = 1,
+  void _deleteMainTask(MainTask task) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Delete Task'),
+          content: Text('Are you sure you want to delete this task?'),
+          actions: [
+            TextButton(
+              child: Text('Cancel'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            ElevatedButton(
+              child: Text('Delete'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+              ),
+              onPressed: () {
+                setState(() {
+                  mainTasks.remove(task);
+                  if (selectedTask == task) {
+                    selectedTask = null;
+                  }
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  
+Widget _buildImageUpload({
+  required String? imageData,
+  required Function(String?) onImageSelected,
 }) {
-  return TextField(
-    decoration: InputDecoration(
-      prefixIcon: Icon(icon, color: AppColors.primary, size: 20),
-      labelText: label,
-      labelStyle: TextStyle(fontSize: 14),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-      contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-    ),
-    style: TextStyle(fontSize: 14),
-    onChanged: onChanged,
-    maxLines: maxLines,
-  );
-}
-
-Widget _buildDropdownRow({required Widget firstDropdown, required Widget secondDropdown}) {
-  return Row(
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Expanded(child: firstDropdown),
-      SizedBox(width: 12),
-      Expanded(child: secondDropdown),
+      Text(
+        'Task Image',
+        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
+      ),
+      SizedBox(height: 8),
+      InkWell(
+        onTap: () {
+          final html.FileUploadInputElement input = html.FileUploadInputElement()..accept = 'image/*';
+          input.click();
+
+          input.onChange.listen((event) {
+            final file = input.files!.first;
+            final reader = html.FileReader();
+
+            reader.onLoadEnd.listen((event) {
+              final result = reader.result as String;
+              final base64Image = result.split(',').last;
+              onImageSelected(base64Image);
+            });
+
+            reader.readAsDataUrl(file);
+          });
+        },
+        child: Container(
+          height: 100,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            border: Border.all(color: AppColors.veryLightGreen),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: imageData != null
+              ? Image.memory(
+                  base64Decode(imageData),
+                  fit: BoxFit.cover,
+                )
+              : Icon(
+                  Icons.add_photo_alternate,
+                  size: 40,
+                  color: AppColors.primary,
+                ),
+        ),
+      ),
     ],
   );
 }
+  String capitalize(String? text) {
+    if (text == null || text.isEmpty) {
+      return '';
+    }
+    return text[0].toUpperCase() + text.substring(1);
+  }
 
-Widget _buildDropdown({
-  required IconData icon,
-  required String label,
-  required String? value,
-  required List<String> items,
-  required Function(String?) onChanged,
-}) {
-  return DropdownButtonFormField<String>(
-    decoration: InputDecoration(
-      prefixIcon: Icon(icon, color: AppColors.primary, size: 20),
-      labelText: label,
-      labelStyle: TextStyle(fontSize: 14),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-      contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-    ),
-    value: value,
-    items: items.map((String item) {
-      return DropdownMenuItem<String>(
-        value: item,
-        child: Text(item, style: TextStyle(fontSize: 14)),
-      );
-    }).toList(),
-    onChanged: onChanged,
-    style: TextStyle(fontSize: 14, color: AppColors.textDark),
-  );
-}
-Widget _buildDateField({
-  required IconData icon,
-  required String label,
-  required DateTime? date,
-  required VoidCallback onTap,
-}) {
-  return InkWell(
-    onTap: onTap,
-    child: InputDecorator(
+  Widget _buildAddPersonChip({required VoidCallback onTap}) {
+    return ActionChip(
+      avatar: Icon(Icons.add, size: 16, color: AppColors.primary),
+      label: Text('Add Person', style: TextStyle(fontSize: 12, color: AppColors.primary)),
+      onPressed: onTap,
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: AppColors.primary),
+      ),
+    );
+  }
+
+  Widget _buildHeader(String title) {
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+      decoration: BoxDecoration(
+        color: AppColors.primary,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.add_task, color: Colors.white, size: 24),
+          SizedBox(width: 12),
+          Text(
+            title,
+            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPersonChip(String person, {required VoidCallback onDeleted}) {
+    return Chip(
+      avatar: CircleAvatar(
+        backgroundColor: AppColors.primary,
+        child: Text(
+          person[0].toUpperCase(),
+          style: TextStyle(fontSize: 12, color: Colors.white),
+        ),
+      ),
+      label: Text(person, style: TextStyle(fontSize: 12)),
+      deleteIcon: Icon(Icons.close, size: 16),
+      onDeleted: onDeleted,
+      backgroundColor: AppColors.veryLightGreen,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+    );
+  }
+
+  Widget _buildTextField({
+    required IconData icon,
+    required String label,
+    required Function(String) onChanged,
+    String? initialValue,
+    int maxLines = 1,
+  }) {
+    return TextField(
       decoration: InputDecoration(
         prefixIcon: Icon(icon, color: AppColors.primary, size: 20),
         labelText: label,
@@ -702,104 +864,88 @@ Widget _buildDateField({
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       ),
-      child: Text(
-        date != null ? DateFormat('dd/MM/yyyy').format(date) : 'Select Date',
-        style: TextStyle(fontSize: 14),
-      ),
-    ),
-  );
-}
+      style: TextStyle(fontSize: 14),
+      onChanged: onChanged,
+      maxLines: maxLines,
+      controller: TextEditingController(text: initialValue),
+    );
+  }
 
-Widget _buildPeopleInvolvedSection({
-  required List<String> peopleInvolved,
-  required VoidCallback onAddPerson,
-  required Function(int) onRemovePerson,
-}) {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildDropdown({
+    required IconData icon,
+    required String label,
+    required String? value,
+    required List<String> items,
+    required Function(String?) onChanged,
+  }) {
+    return DropdownButtonFormField<String>(
+      decoration: InputDecoration(
+        prefixIcon: Icon(icon, color: AppColors.primary, size: 20),
+        labelText: label,
+        labelStyle: TextStyle(fontSize: 14),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      ),
+      value: value,
+      items: items.map((String item) {
+        return DropdownMenuItem<String>(
+          value: item,
+          child: Text(item, style: TextStyle(fontSize: 14)),
+        );
+      }).toList(),
+      onChanged: onChanged,
+      style: TextStyle(fontSize: 14, color: AppColors.textDark),
+    );
+  }
+
+  Widget _buildDateField({
+    required IconData icon,
+    required String label,
+    required DateTime? date,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: InputDecorator(
+        decoration: InputDecoration(
+          prefixIcon: Icon(icon, color: AppColors.primary, size: 20),
+          labelText: label,
+          labelStyle: TextStyle(fontSize: 14),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          contentPadding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        ),
+        child: Text(
+          date != null ? DateFormat('dd/MM/yyyy').format(date) : 'Select Date',
+          style: TextStyle(fontSize: 14),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButtons({required VoidCallback onCancel, required VoidCallback onCreate}) {
+    return Container(
+      padding: EdgeInsets.all(20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          Text(
-            'People Involved',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
+          TextButton(
+            child: Text('Cancel', style: TextStyle(color: AppColors.primary, fontSize: 14)),
+            onPressed: onCancel,
           ),
-          IconButton(
-            icon: Icon(Icons.add, size: 20, color: AppColors.primary),
-            onPressed: onAddPerson,
+          SizedBox(width: 16),
+          ElevatedButton(
+            child: Text('Create', style: TextStyle(color: Colors.white, fontSize: 14)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            ),
+            onPressed: onCreate,
           ),
         ],
       ),
-      SizedBox(height: 8),
-      Container(
-        height: 100,
-        decoration: BoxDecoration(
-          border: Border.all(color: AppColors.veryLightGreen),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: ListView.builder(
-          padding: EdgeInsets.all(8),
-          itemCount: peopleInvolved.length,
-          itemBuilder: (context, index) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 12,
-                    backgroundColor: AppColors.primary,
-                    child: Text(
-                      peopleInvolved[index][0],
-                      style: TextStyle(fontSize: 10, color: Colors.white),
-                    ),
-                  ),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      peopleInvolved[index],
-                      style: TextStyle(fontSize: 12),
-                    ),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.close, size: 16, color: AppColors.textDark),
-                    onPressed: () => onRemovePerson(index),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-      ),
-    ],
-  );
-}
-
-Widget _buildActionButtons({required VoidCallback onCancel, required VoidCallback onCreate}) {
-  return Container(
-    padding: EdgeInsets.all(20),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        TextButton(
-          child: Text('Cancel', style: TextStyle(color: AppColors.primary, fontSize: 14)),
-          onPressed: onCancel,
-        ),
-        SizedBox(width: 16),
-        ElevatedButton(
-          child: Text('Create', style: TextStyle(color: Colors.white, fontSize: 14)),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          ),
-          onPressed: onCreate,
-        ),
-      ],
-    ),
-  );
-}
-  
+    );
+  }
 
   void _showAddPersonDialog(BuildContext context, Function(String) onAdd) {
     String newPerson = '';
@@ -845,7 +991,7 @@ Widget _buildActionButtons({required VoidCallback onCancel, required VoidCallbac
   void _addNewTask(MainTask newTask) {
     setState(() {
       mainTasks.add(newTask);
+      mainTasks.sort((a, b) => b.startDate.compareTo(a.startDate));
     });
   }
 }
-
