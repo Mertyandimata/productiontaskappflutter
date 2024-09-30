@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 
-import 'package:etsu/utils/excel_manager.dart';
+import 'package:etsu/utils/IndexedDBTaskManager.dart';
+//import 'package:etsu/utils/excel_manager.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -13,6 +15,7 @@ import 'package:intl/intl.dart';
 import 'dart:io';
 import 'dart:html' as html;
 import 'package:path_provider/path_provider.dart'; 
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class TaskManagementPage extends StatefulWidget {
   @override
@@ -25,14 +28,17 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
   String? selectedPlant;
   List<String> plants = ['All', 'DM1', 'DS5', 'DC3', 'DB4'];
   MainTask? selectedTask;
-  late TextFileTaskManager taskManager;
+  //late TextFileTaskManager taskManager;
   List<MainTask> mainTasks = [];
+  late IndexedDBTaskManager taskManager; // TextFileTaskManager yerine IndexedDBTaskManager'ı tanımlıyoruz
+
 
   @override
   void initState() {
     super.initState();
     _initTaskManager();
   }
+  /*
 Future<void> _initTaskManager() async {
   print('TextFileTaskManager başlatılıyor...');
   taskManager = TextFileTaskManager();
@@ -40,18 +46,33 @@ Future<void> _initTaskManager() async {
 }
 
 void _downloadDatabase() {
-  final csvContent = taskManager.exportToCSV(mainTasks);
+  if (kIsWeb) {
+    final csvContent = taskManager.exportToCSV(mainTasks);
 
-  // CSV dosyasını oluştur ve indir
-  final blob = html.Blob([csvContent], 'text/csv');
-  final url = html.Url.createObjectUrlFromBlob(blob);
-  final anchor = html.AnchorElement(href: url)
-    ..setAttribute("download", "tasks_database.csv")
-    ..click();
+    // Web platformunda çalıştığından emin ol
+    // CSV dosyasını oluştur ve indir
+    final blob = html.Blob([csvContent], 'text/csv');
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    final anchor = html.AnchorElement(href: url)
+      ..setAttribute("download", "tasks_database.csv")
+      ..click();
 
-  // URL'yi temizle
-  html.Url.revokeObjectUrl(url);
+    // URL'yi temizle
+    html.Url.revokeObjectUrl(url);
+  } else {
+    print('Bu özellik sadece web platformunda çalışır.');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Bu özellik sadece web platformunda kullanılabilir.')),
+    );
+  }
+}*/
+Future<void> _initTaskManager() async {
+  print('IndexedDBTaskManager başlatılıyor...');
+  taskManager = IndexedDBTaskManager(); // Yeni IndexedDBTaskManager'ı kullan
+  await _loadTasks(); // Veritabanından görevleri yükle
 }
+
+
 
 
 
@@ -105,7 +126,7 @@ void _downloadDatabase() {
     SizedBox(width: 16),
     IconButton(
       icon: Icon(Icons.download, color: AppColors.primary),
-      onPressed: _downloadDatabase,
+      onPressed: null,//_downloadDatabase,
       tooltip: 'Download Database',
     ),
   ],
@@ -203,7 +224,27 @@ void _createNewTask() {
 }
 
   
-  Future<String?> pickAndEncodeImage() async {
+Future<String?> pickAndEncodeImage() async {
+  if (kIsWeb) {
+    final input = html.FileUploadInputElement()..accept = 'image/*';
+    input.click();
+
+    final completer = Completer<String?>();
+    input.onChange.listen((event) {
+      final file = input.files!.first;
+      final reader = html.FileReader();
+
+      reader.onLoadEnd.listen((event) {
+        final result = reader.result as String;
+        final base64Image = result.split(',').last;
+        completer.complete(base64Image);
+      });
+
+      reader.readAsDataUrl(file);
+    });
+    return completer.future;
+  } else {
+    // Mobil platformlar için fallback
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.image,
       withData: true,
@@ -216,6 +257,8 @@ void _createNewTask() {
     }
     return null;
   }
+}
+
 
 Widget _buildPlantDropdown() {
   return Container(
@@ -863,6 +906,8 @@ Widget _buildImageUpload({
       },
     );
   }
+
+  /*
 Future<void> _addNewTask(MainTask newTask) async {
   try {
     print('Yeni ana görev ekleniyor: ${newTask.name}');
@@ -1012,6 +1057,77 @@ Future<void> _loadTasks() async {
       SnackBar(content: Text('Görevler yüklenirken bir hata oluştu')),
     );
   }
+}*/
+
+Future<void> _addNewTask(MainTask newTask) async {
+  try {
+    await taskManager.addMainTask(newTask); // IndexedDB'ye ana görevi ekler
+    print('Yeni ana görev başarıyla eklendi: ${newTask.name}');
+    await _loadTasks();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Ana görev başarıyla eklendi: ${newTask.name}')),
+    );
+  } catch (e) {
+    print('Ana görev eklenirken hata oluştu: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Ana görev eklenirken bir hata oluştu')),
+    );
+  }
 }
+Future<void> _addNewSubTask(String mainTaskId, SubTask newSubTask) async {
+  try {
+    await taskManager.addSubTask(mainTaskId, newSubTask); // IndexedDB'ye alt görev ekler
+    print('Yeni alt görev başarıyla eklendi: ${newSubTask.name}');
+    await _loadTasks();
+  } catch (e) {
+    print('Alt görev eklenirken hata oluştu: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Alt görev eklenirken bir hata oluştu')),
+    );
+  }
+}
+
+Future<void> _updateTask(MainTask updatedTask) async {
+  try {
+    await taskManager.updateMainTask(updatedTask); // IndexedDB'de ana görevi günceller
+    print('Ana görev başarıyla güncellendi: ${updatedTask.name}');
+    await _loadTasks();
+  } catch (e) {
+    print('Ana görev güncellenirken hata oluştu: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Ana görev güncellenirken bir hata oluştu')),
+    );
+  }
+}
+
+Future<void> _deleteMainTask(MainTask task) async {
+  try {
+    await taskManager.deleteMainTask(task.id); // IndexedDB'den ana görevi siler
+    print('Ana görev başarıyla silindi: ${task.name}');
+    await _loadTasks();
+  } catch (e) {
+    print('Ana görev silinirken hata oluştu: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Ana görev silinirken bir hata oluştu')),
+    );
+  }
+}
+
+Future<void> _loadTasks() async {
+  try {
+    var tasks = await taskManager.readTasks(); // IndexedDB'den tüm görevleri yükler
+    setState(() {
+      mainTasks = tasks;
+    });
+    print('Görevler başarıyla yüklendi. Toplam ana görev sayısı: ${mainTasks.length}');
+  } catch (e) {
+    print('Görevler yüklenirken hata oluştu: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Görevler yüklenirken bir hata oluştu')),
+    );
+  }
+}
+
+
 
 }
