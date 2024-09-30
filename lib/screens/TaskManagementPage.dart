@@ -1,6 +1,8 @@
 import 'dart:convert';
 
+import 'package:etsu/utils/excel_manager.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../models/tasks.dart';
@@ -8,9 +10,9 @@ import '../utils/app_colors.dart';
 import '../widgets/main_task_card.dart';
 import '../widgets/task_detail_panel.dart';
 import 'package:intl/intl.dart';
-import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'dart:html' as html;
+import 'package:path_provider/path_provider.dart'; 
 
 class TaskManagementPage extends StatefulWidget {
   @override
@@ -23,154 +25,65 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
   String? selectedPlant;
   List<String> plants = ['All', 'DM1', 'DS5', 'DC3', 'DB4'];
   MainTask? selectedTask;
-List<MainTask> mainTasks = [
-  MainTask(
-    name: 'Optimize Production Line',
-    description: 'Improve efficiency of the main production line',
-    peopleInvolved: ['John Doe', 'Jane Smith'],
-    startDate: DateTime.now().subtract(Duration(days: 10)),
-    dueDate: DateTime.now().add(Duration(days: 20)),
-    department: 'Hot Water',
-    plant: 'DM1',
-    subTasks: [
-      SubTask(
-        id: '1',
-        name: 'Analyze current workflow',
-        assignedTo: 'John Doe',
-        dueDate: DateTime.now().add(Duration(days: 5)),
-        note: 'Identify bottlenecks in the production process',
-        status: SubTaskStatus.inProgress,
-      ),
-      SubTask(
-        id: '2',
-        name: 'Implement new scheduling system',
-        assignedTo: 'Jane Smith',
-        dueDate: DateTime.now().add(Duration(days: 10)),
-        note: 'Introduce a new system to reduce downtime',
-        status: SubTaskStatus.backlog,
-      ),
-    ],
-  ),
-  MainTask(
-    name: 'Install New Press Machine',
-    description: 'Install and calibrate the new press machine in the plant.',
-    peopleInvolved: ['Alice Johnson', 'Mark Thompson'],
-    startDate: DateTime.now().subtract(Duration(days: 5)),
-    dueDate: DateTime.now().add(Duration(days: 25)),
-    department: 'Pressing',
-    plant: 'DC3',
-    subTasks: [
-      SubTask(
-        id: '3',
-        name: 'Machine setup and calibration',
-        assignedTo: 'Alice Johnson',
-        dueDate: DateTime.now().add(Duration(days: 15)),
-        note: 'Ensure machine is properly calibrated',
-        status: SubTaskStatus.backlog,
-      ),
-    ],
-  ),
-  MainTask(
-    name: 'Cold Water System Maintenance',
-    description: 'Perform scheduled maintenance on the cold water system.',
-    peopleInvolved: ['Samantha Lee', 'Chris Evans'],
-    startDate: DateTime.now().subtract(Duration(days: 15)),
-    dueDate: DateTime.now().add(Duration(days: 10)),
-    department: 'Cold Water',
-    plant: 'DS5',
-    subTasks: [],
-  ),
-  MainTask(
-    name: 'Upgrade Machining Equipment',
-    description: 'Upgrade the machining equipment for better precision.',
-    peopleInvolved: ['Robert Downey', 'Natalie Portman'],
-    startDate: DateTime.now().subtract(Duration(days: 20)),
-    dueDate: DateTime.now().add(Duration(days: 15)),
-    department: 'Machining',
-    plant: 'DB4',
-    subTasks: [
-      SubTask(
-        id: '4',
-        name: 'Order new parts',
-        assignedTo: 'Natalie Portman',
-        dueDate: DateTime.now().add(Duration(days: 5)),
-        note: 'Ensure all new parts are ordered and delivered on time',
-        status: SubTaskStatus.waiting,
-      ),
-    ],
-  ),
-  MainTask(
-    name: 'Energy Efficiency Audit',
-    description: 'Conduct an energy audit to find ways to reduce electricity usage.',
-    peopleInvolved: ['Bruce Wayne', 'Diana Prince'],
-    startDate: DateTime.now().subtract(Duration(days: 3)),
-    dueDate: DateTime.now().add(Duration(days: 30)),
-    department: 'Hot Water',
-    plant: 'DM1',
-    subTasks: [
-      SubTask(
-        id: '5',
-        name: 'Collect energy usage data',
-        assignedTo: 'Bruce Wayne',
-        dueDate: DateTime.now().add(Duration(days: 7)),
-        note: 'Review current energy consumption metrics',
-        status: SubTaskStatus.inProgress,
-      ),
-      SubTask(
-        id: '6',
-        name: 'Present findings to management',
-        assignedTo: 'Diana Prince',
-        dueDate: DateTime.now().add(Duration(days: 20)),
-        note: 'Show potential areas for reducing energy usage',
-        status: SubTaskStatus.backlog,
-      ),
-      SubTask(
-        id: '13',
-        name: 'Present findings to management',
-        assignedTo: 'Diana Prince',
-        dueDate: DateTime.now().add(Duration(days: 20)),
-        note: 'Show potential areas for reducing energy usage',
-        status: SubTaskStatus.backlog,
-      ),
-      SubTask(
-        id: '14',
-        name: 'Present findings to management',
-        assignedTo: 'Diana Prince',
-        dueDate: DateTime.now().add(Duration(days: 20)),
-        note: 'Show potential areas for reducing energy usage',
-        status: SubTaskStatus.backlog,
-      ),
-    ],
-  ),
-  MainTask(
-    name: 'Inspect Safety Equipment',
-    description: 'Check the condition of all safety equipment in the plant.',
-    peopleInvolved: ['Clark Kent', 'Barry Allen'],
-    startDate: DateTime.now().subtract(Duration(days: 7)),
-    dueDate: DateTime.now().add(Duration(days: 21)),
-    department: 'Pressing',
-    plant: 'DS5',
-    subTasks: [
-      SubTask(
-        id: '7',
-        name: 'Inspect fire extinguishers',
-        assignedTo: 'Clark Kent',
-        dueDate: DateTime.now().add(Duration(days: 14)),
-        note: 'Ensure all extinguishers are up to date',
-        status: SubTaskStatus.inProgress,
-      ),
-    ],
-  ),
-];
+  late ExcelManager excelManager;
+  List<MainTask> mainTasks = [];
 
   @override
-  void initState() {
-    super.initState();
-    if (mainTasks.isNotEmpty) {
-      mainTasks.sort((a, b) => b.startDate.compareTo(a.startDate));
-      selectedTask = mainTasks[0];
+void initState() {
+  super.initState();
+
+  // ExcelManager'ı başlatın
+  _initExcelManager();
+}
+
+Future<void> _initExcelManager() async {
+  // Bu yöntem, web için ayrı, mobil için ayrı yapılmalı
+  if (kIsWeb) {
+    // Web için dosya seçimi
+    var result = await FilePicker.platform.pickFiles();
+    if (result != null) {
+      PlatformFile file = result.files.first;
+      excelManager = ExcelManager(file.path!);
     }
+  } else {
+    // Mobilde 'assets' kullanarak yükleyelim
+    final filePath = 'assets/data.xlsx'; // Mobilde dosya yolu
+    excelManager = ExcelManager(filePath);
   }
+  
+  // Excel'den verileri yükleyin
+  await _loadTasksFromExcel();
+}
+
+Future<void> _loadTasksFromExcel() async {
+  try {
+    if (kIsWeb) {
+      var result = await FilePicker.platform.pickFiles();
+      if (result != null) {
+        PlatformFile file = result.files.first;
+        print('Dosya yüklendi: ${file.name}');
+        print('Dosya boyutu: ${file.size}');
+        var tasks = await excelManager.readTasksFromFile(file.bytes!);
+        setState(() {
+          mainTasks = tasks;
+        });
+        print('Toplam görev sayısı: ${mainTasks.length}');
+      }
+    } else {
+      var tasks = await excelManager.readTasks();
+      setState(() {
+        mainTasks = tasks;
+      });
+      print('Toplam görev sayısı: ${mainTasks.length}');
+    }
+  } catch (e) {
+    print('Veriler yüklenirken hata oluştu: $e');
+  }
+}
+
+
+
+
 
   Future<String?> pickAndEncodeImage() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -404,17 +317,22 @@ Widget _buildDepartmentDropdown() {
     });
   }
 
-  void _updateTask(MainTask updatedTask) {
-    setState(() {
-      int index = mainTasks.indexWhere((task) => task.name == updatedTask.name);
-      if (index != -1) {
-        mainTasks[index] = updatedTask;
-        if (selectedTask != null && selectedTask!.name == updatedTask.name) {
-          selectedTask = updatedTask;
-        }
+  void _updateTask(MainTask updatedTask) async {
+  setState(() {
+    int index = mainTasks.indexWhere((task) => task.id == updatedTask.id); // Görev id'sine göre buluyoruz
+    if (index != -1) {
+      mainTasks[index] = updatedTask; // Görevi güncelliyoruz
+      if (selectedTask != null && selectedTask!.id == updatedTask.id) {
+        selectedTask = updatedTask;
       }
-    });
-  }
+    }
+  });
+
+  // Excel dosyasını güncelle
+  await excelManager.updateMainTask(updatedTask, excelManager.filePath);
+}
+
+
 
   void _showCreateTaskDialog({MainTask? taskToEdit}) {
   String taskName = taskToEdit?.name ?? '';
@@ -425,6 +343,9 @@ Widget _buildDepartmentDropdown() {
   DateTime startDate = taskToEdit?.startDate ?? DateTime.now();
   DateTime? dueDate = taskToEdit?.dueDate;
   String? imageData = taskToEdit?.imageData;
+
+  // ID için en yüksek ID'yi buluyoruz
+  int newTaskId = _generateNewTaskId();
 
   showDialog(
     context: context,
@@ -443,6 +364,7 @@ Widget _buildDepartmentDropdown() {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Sol taraf (Task bilgileri)
                         Expanded(
                           flex: 3,
                           child: SingleChildScrollView(
@@ -454,14 +376,14 @@ Widget _buildDepartmentDropdown() {
                                   icon: Icons.title,
                                   label: 'Task Name',
                                   initialValue: taskName,
-                                  onChanged: (value) => taskName = value,
+                                  onChanged: (value) => setState(() => taskName = value),
                                 ),
                                 SizedBox(height: 16),
                                 _buildTextField(
                                   icon: Icons.description,
                                   label: 'Description',
                                   initialValue: taskDescription,
-                                  onChanged: (value) => taskDescription = value,
+                                  onChanged: (value) => setState(() => taskDescription = value),
                                   maxLines: 4,
                                 ),
                                 SizedBox(height: 16),
@@ -539,6 +461,7 @@ Widget _buildDepartmentDropdown() {
                             ),
                           ),
                         ),
+                        // Sağ taraf (People Involved)
                         Expanded(
                           flex: 2,
                           child: Container(
@@ -588,25 +511,29 @@ Widget _buildDepartmentDropdown() {
                   _buildActionButtons(
                     onCancel: () => Navigator.of(context).pop(),
                     onCreate: () {
-                      if (taskName.isNotEmpty && taskDescription.isNotEmpty &&
-                          selectedPlantForTask != null && selectedDepartmentForTask != null) {
-                        MainTask newTask = MainTask(
-                          name: taskName,
-                          description: taskDescription,
-                          peopleInvolved: peopleInvolved,
-                          startDate: startDate,
-                          dueDate: dueDate,
-                          subTasks: taskToEdit?.subTasks ?? [],
-                          department: selectedDepartmentForTask!,
-                          plant: selectedPlantForTask!,
-                          imageData: imageData,
-                        );
-                        Navigator.of(context).pop(newTask);
-                      } else {
+                      // Girdi doğrulaması yapıyoruz
+                      if (taskName.isEmpty || taskDescription.isEmpty || selectedPlantForTask == null || selectedDepartmentForTask == null) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text('Please fill in all required fields')),
                         );
+                        return;
                       }
+
+                      // Yeni görevi oluştur
+                      MainTask newTask = MainTask(
+                        id: newTaskId.toString(), // Yeni ID'yi burada veriyoruz
+                        name: taskName,
+                        description: taskDescription,
+                        peopleInvolved: peopleInvolved,
+                        startDate: startDate,
+                        dueDate: dueDate,
+                        subTasks: taskToEdit?.subTasks ?? [],
+                        department: selectedDepartmentForTask!,
+                        plant: selectedPlantForTask!,
+                        imageData: imageData,
+                      );
+
+                      Navigator.of(context).pop(newTask);
                     },
                   ),
                 ],
@@ -618,6 +545,7 @@ Widget _buildDepartmentDropdown() {
     },
   ).then((result) {
     if (result != null) {
+      // Görev ekleme veya güncelleme işlemi
       if (taskToEdit == null) {
         _addNewTask(result);
       } else {
@@ -625,6 +553,15 @@ Widget _buildDepartmentDropdown() {
       }
     }
   });
+}
+
+// Yeni ID üretme fonksiyonu
+int _generateNewTaskId() {
+  if (mainTasks.isEmpty) return 1;
+
+  // mainTasks listesindeki en yüksek ID'yi buluyoruz
+  int maxId = mainTasks.map((task) => int.tryParse(task.id) ?? 0).reduce((a, b) => a > b ? a : b);
+  return maxId + 1; // Yeni ID bir önceki en büyük ID'yi 1 artırarak verilir
 }
 
 Widget _buildTaskCard(MainTask task) {
@@ -703,38 +640,41 @@ Widget _buildTaskCard(MainTask task) {
     _showCreateTaskDialog(taskToEdit: task);
   }
 
-  void _deleteMainTask(MainTask task) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Delete Task'),
-          content: Text('Are you sure you want to delete this task?'),
-          actions: [
-            TextButton(
-              child: Text('Cancel'),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            ElevatedButton(
-              child: Text('Delete'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-              ),
-              onPressed: () {
-                setState(() {
-                  mainTasks.remove(task);
-                  if (selectedTask == task) {
-                    selectedTask = null;
-                  }
-                });
-                Navigator.of(context).pop();
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
+  void _deleteMainTask(MainTask task) async {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: Text('Delete Task'),
+        content: Text('Are you sure you want to delete this task?'),
+        actions: [
+          TextButton(
+            child: Text('Cancel'),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          ElevatedButton(
+            child: Text('Delete'),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              setState(() {
+                mainTasks.remove(task); // Görevi listeden kaldırıyoruz
+                if (selectedTask == task) {
+                  selectedTask = null;
+                }
+              });
+
+              // Excel dosyasından da sil
+              await excelManager.deleteMainTask(task.id, excelManager.filePath);
+              Navigator.of(context).pop();
+            },
+          ),
+        ],
+      );
+    },
+  );
+}
+
+
 
   
 Widget _buildImageUpload({
@@ -987,11 +927,15 @@ Widget _buildImageUpload({
       },
     );
   }
+void _addNewTask(MainTask newTask) async {
+  setState(() {
+    mainTasks.add(newTask); // Görev listeye ekleniyor
+    mainTasks.sort((a, b) => b.startDate.compareTo(a.startDate)); // Görevler tarihe göre sıralanıyor
+  });
 
-  void _addNewTask(MainTask newTask) {
-    setState(() {
-      mainTasks.add(newTask);
-      mainTasks.sort((a, b) => b.startDate.compareTo(a.startDate));
-    });
-  }
+  // Excel'e kaydediyoruz
+  await excelManager.addMainTask(newTask, excelManager.filePath);
+}
+
+
 }

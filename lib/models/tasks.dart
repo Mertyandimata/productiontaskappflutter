@@ -1,4 +1,6 @@
+// MainTask ve SubTask sınıfları
 class MainTask {
+  String id;
   String name;
   String description;
   List<String> peopleInvolved;
@@ -7,9 +9,10 @@ class MainTask {
   List<SubTask> subTasks;
   String department;
   String plant;
-  String? imageData; // Yeni eklenen alan
+  String? imageData;
 
   MainTask({
+    required this.id,
     required this.name,
     required this.description,
     required this.peopleInvolved,
@@ -32,7 +35,6 @@ class MainTask {
     return '$completedTasks/${subTasks.length}';
   }
 
-  // Kopyalama metodu, düzenleme işlemleri için kullanışlı olacak
   MainTask copyWith({
     String? name,
     String? description,
@@ -45,6 +47,7 @@ class MainTask {
     String? imageData,
   }) {
     return MainTask(
+      id: this.id,
       name: name ?? this.name,
       description: description ?? this.description,
       peopleInvolved: peopleInvolved ?? this.peopleInvolved,
