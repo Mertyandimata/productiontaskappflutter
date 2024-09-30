@@ -88,7 +88,7 @@ Widget build(BuildContext context) {
     );
   }
 
- Widget _buildDetailSection() {
+Widget _buildDetailSection() {
   return Padding(
     padding: EdgeInsets.all(16),
     child: Column(
@@ -118,18 +118,29 @@ Widget build(BuildContext context) {
               ),
               SizedBox(width: 16),
               Expanded(
-                child: _buildStatusDonutChart(),
+                child: widget.task.imageData != null
+                    ? _buildTaskImage(widget.task.imageData!)
+                    : _buildImageUpload(
+                        imageData: null,
+                        onImageSelected: (data) {
+                          setState(() {
+                            widget.task.imageData = data;
+                            widget.onTaskUpdated(widget.task);
+                          });
+                        },
+                      ),
               ),
             ],
           ),
         ),
         SizedBox(height: 16),
-        if (widget.task.imageData != null)
-          _buildTaskImage(widget.task.imageData!),
       ],
     ),
   );
-}Widget _buildTaskImage(String imageData) {
+}
+
+
+Widget _buildTaskImage(String imageData) {
   return GestureDetector(
     onTap: () => _showEnlargedImage(imageData),
     child: Container(

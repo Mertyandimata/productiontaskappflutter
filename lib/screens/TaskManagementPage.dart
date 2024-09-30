@@ -132,7 +132,7 @@ void _downloadDatabase() {
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primary),
                   ),
                   ElevatedButton.icon(
-                    onPressed: () => _showCreateTaskDialog(),
+                    onPressed: () => _createNewTask(),
                     icon: Icon(Icons.add, color: Colors.white),
                     label: Text('Create Task', style: TextStyle(color: Colors.white)),
                     style: ElevatedButton.styleFrom(
@@ -192,6 +192,15 @@ void _downloadDatabase() {
       ),
     );
   }
+
+void _createNewTask() {
+  print('Creating a new task...');
+  _showCreateTaskDialog().then((newTask) {
+    if (newTask != null) {
+      _addNewTask(newTask); // Yeni görev eklendiğinde veri tabanına kaydediyoruz
+    }
+  });
+}
 
   
   Future<String?> pickAndEncodeImage() async {
@@ -489,7 +498,7 @@ Future<MainTask?> _showCreateTaskDialog({MainTask? taskToEdit}) async {
                       MainTask newOrUpdatedTask = MainTask(
                         id: newTaskId.toString(),
                         name: taskName,
-                        description: taskDescription,
+                        description: taskDescription, 
                         peopleInvolved: peopleInvolved,
                         startDate: startDate,
                         dueDate: dueDate,
