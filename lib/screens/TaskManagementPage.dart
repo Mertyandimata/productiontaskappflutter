@@ -25,87 +25,49 @@ class _TaskManagementPageState extends State<TaskManagementPage> {
   String? selectedPlant;
   List<String> plants = ['All', 'DM1', 'DS5', 'DC3', 'DB4'];
   MainTask? selectedTask;
-  late ExcelManager excelManager;
+  late TextFileTaskManager taskManager;
   List<MainTask> mainTasks = [];
 
   @override
-void initState() {
-  super.initState();
-
-  // ExcelManager'ı başlatın
-  _initExcelManager();
+  void initState() {
+    super.initState();
+    _initTaskManager();
+  }
+Future<void> _initTaskManager() async {
+  print('TextFileTaskManager başlatılıyor...');
+  taskManager = TextFileTaskManager();
+  await _loadTasks();
 }
 
-Future<void> _initExcelManager() async {
-  // Bu yöntem, web için ayrı, mobil için ayrı yapılmalı
-  if (kIsWeb) {
-    // Web için dosya seçimi
-    var result = await FilePicker.platform.pickFiles();
-    if (result != null) {
-      PlatformFile file = result.files.first;
-      excelManager = ExcelManager(file.path!);
-    }
-  } else {
-    // Mobilde 'assets' kullanarak yükleyelim
-    final filePath = 'assets/data.xlsx'; // Mobilde dosya yolu
-    excelManager = ExcelManager(filePath);
-  }
-  
-  // Excel'den verileri yükleyin
-  await _loadTasksFromExcel();
-}
+void _downloadDatabase() {
+  final csvContent = taskManager.exportToCSV(mainTasks);
 
-Future<void> _loadTasksFromExcel() async {
-  try {
-    if (kIsWeb) {
-      var result = await FilePicker.platform.pickFiles();
-      if (result != null) {
-        PlatformFile file = result.files.first;
-        print('Dosya yüklendi: ${file.name}');
-        print('Dosya boyutu: ${file.size}');
-        var tasks = await excelManager.readTasksFromFile(file.bytes!);
-        setState(() {
-          mainTasks = tasks;
-        });
-        print('Toplam görev sayısı: ${mainTasks.length}');
-      }
-    } else {
-      var tasks = await excelManager.readTasks();
-      setState(() {
-        mainTasks = tasks;
-      });
-      print('Toplam görev sayısı: ${mainTasks.length}');
-    }
-  } catch (e) {
-    print('Veriler yüklenirken hata oluştu: $e');
-  }
+  // CSV dosyasını oluştur ve indir
+  final blob = html.Blob([csvContent], 'text/csv');
+  final url = html.Url.createObjectUrlFromBlob(blob);
+  final anchor = html.AnchorElement(href: url)
+    ..setAttribute("download", "tasks_database.csv")
+    ..click();
+
+  // URL'yi temizle
+  html.Url.revokeObjectUrl(url);
 }
 
 
-
-
-
-  Future<String?> pickAndEncodeImage() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      type: FileType.image,
-      withData: true,
-    );
-
-    if (result != null) {
-      PlatformFile file = result.files.first;
-      String base64Image = base64Encode(file.bytes!);
-      return base64Image;
-    }
-    return null;
-  }
 
   @override
   Widget build(BuildContext context) {
-    List<MainTask> filteredTasks = mainTasks.where((task) =>
-      (selectedDepartment == null || selectedDepartment == 'All' || task.department == selectedDepartment) &&
-      (selectedPlant == null || selectedPlant == 'All' || task.plant == selectedPlant)
-    ).toList();
+    print('TaskManagementPage arayüzü oluşturuluyor...');
+    
+    // Filtrelenmiş görevler listesi
+    List<MainTask> filteredTasks = mainTasks.where((task) {
+      print('Görev: ${task.name}, Department: ${task.department}, Plant: ${task.plant}');
+      return (selectedDepartment == null || selectedDepartment == 'All' || task.department == selectedDepartment) &&
+             (selectedPlant == null || selectedPlant == 'All' || task.plant == selectedPlant);
+    }).toList();
 
+    print('Filtrelenmiş görev sayısı: ${filteredTasks.length}');
+    
     return Scaffold(
       appBar: AppBar(
         systemOverlayStyle: SystemUiOverlayStyle.dark,
@@ -130,18 +92,23 @@ Future<void> _loadTasksFromExcel() async {
         ),
         backgroundColor: Colors.white,
         elevation: 0,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12.0),
-            child: _buildPlantDropdown(),
-          ),
-          SizedBox(width: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12.0),
-            child: _buildDepartmentDropdown(),
-          ),
-          SizedBox(width: 16),
-        ],
+       actions: [
+    Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12.0),
+      child: _buildPlantDropdown(),
+    ),
+    SizedBox(width: 16),
+    Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12.0),
+      child: _buildDepartmentDropdown(),
+    ),
+    SizedBox(width: 16),
+    IconButton(
+      icon: Icon(Icons.download, color: AppColors.primary),
+      onPressed: _downloadDatabase,
+      tooltip: 'Download Database',
+    ),
+  ],
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -193,6 +160,7 @@ Future<void> _loadTasksFromExcel() async {
                       : ListView.builder(
                           itemCount: filteredTasks.length,
                           itemBuilder: (context, index) {
+                            print('Görev gösteriliyor: ${filteredTasks[index].name}');
                             return Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                               child: MainTaskCard(
@@ -223,6 +191,21 @@ Future<void> _loadTasksFromExcel() async {
         ),
       ),
     );
+  }
+
+  
+  Future<String?> pickAndEncodeImage() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      withData: true,
+    );
+
+    if (result != null) {
+      PlatformFile file = result.files.first;
+      String base64Image = base64Encode(file.bytes!);
+      return base64Image;
+    }
+    return null;
   }
 
 Widget _buildPlantDropdown() {
@@ -317,24 +300,9 @@ Widget _buildDepartmentDropdown() {
     });
   }
 
-  void _updateTask(MainTask updatedTask) async {
-  setState(() {
-    int index = mainTasks.indexWhere((task) => task.id == updatedTask.id); // Görev id'sine göre buluyoruz
-    if (index != -1) {
-      mainTasks[index] = updatedTask; // Görevi güncelliyoruz
-      if (selectedTask != null && selectedTask!.id == updatedTask.id) {
-        selectedTask = updatedTask;
-      }
-    }
-  });
-
-  // Excel dosyasını güncelle
-  await excelManager.updateMainTask(updatedTask, excelManager.filePath);
-}
 
 
-
-  void _showCreateTaskDialog({MainTask? taskToEdit}) {
+Future<MainTask?> _showCreateTaskDialog({MainTask? taskToEdit}) async {
   String taskName = taskToEdit?.name ?? '';
   String taskDescription = taskToEdit?.description ?? '';
   List<String> peopleInvolved = List.from(taskToEdit?.peopleInvolved ?? []);
@@ -344,10 +312,10 @@ Widget _buildDepartmentDropdown() {
   DateTime? dueDate = taskToEdit?.dueDate;
   String? imageData = taskToEdit?.imageData;
 
-  // ID için en yüksek ID'yi buluyoruz
-  int newTaskId = _generateNewTaskId();
+  // Yeni görev oluşturulacaksa ID üretiyoruz, düzenleme yapılıyorsa mevcut ID'yi kullanıyoruz
+  int newTaskId = taskToEdit?.id != null ? int.parse(taskToEdit!.id) : _generateNewTaskId();
 
-  showDialog(
+  return showDialog<MainTask>(
     context: context,
     builder: (BuildContext context) {
       return StatefulBuilder(
@@ -510,8 +478,7 @@ Widget _buildDepartmentDropdown() {
                   ),
                   _buildActionButtons(
                     onCancel: () => Navigator.of(context).pop(),
-                    onCreate: () {
-                      // Girdi doğrulaması yapıyoruz
+                    onSave: () {
                       if (taskName.isEmpty || taskDescription.isEmpty || selectedPlantForTask == null || selectedDepartmentForTask == null) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text('Please fill in all required fields')),
@@ -519,9 +486,8 @@ Widget _buildDepartmentDropdown() {
                         return;
                       }
 
-                      // Yeni görevi oluştur
-                      MainTask newTask = MainTask(
-                        id: newTaskId.toString(), // Yeni ID'yi burada veriyoruz
+                      MainTask newOrUpdatedTask = MainTask(
+                        id: newTaskId.toString(),
                         name: taskName,
                         description: taskDescription,
                         peopleInvolved: peopleInvolved,
@@ -533,7 +499,7 @@ Widget _buildDepartmentDropdown() {
                         imageData: imageData,
                       );
 
-                      Navigator.of(context).pop(newTask);
+                      Navigator.of(context).pop(newOrUpdatedTask);
                     },
                   ),
                 ],
@@ -543,25 +509,14 @@ Widget _buildDepartmentDropdown() {
         },
       );
     },
-  ).then((result) {
-    if (result != null) {
-      // Görev ekleme veya güncelleme işlemi
-      if (taskToEdit == null) {
-        _addNewTask(result);
-      } else {
-        _updateTask(result);
-      }
-    }
-  });
+  );
 }
 
-// Yeni ID üretme fonksiyonu
 int _generateNewTaskId() {
   if (mainTasks.isEmpty) return 1;
 
-  // mainTasks listesindeki en yüksek ID'yi buluyoruz
   int maxId = mainTasks.map((task) => int.tryParse(task.id) ?? 0).reduce((a, b) => a > b ? a : b);
-  return maxId + 1; // Yeni ID bir önceki en büyük ID'yi 1 artırarak verilir
+  return maxId + 1;
 }
 
 Widget _buildTaskCard(MainTask task) {
@@ -636,43 +591,15 @@ Widget _buildTaskCard(MainTask task) {
   );
 }
 
-  void _editMainTask(MainTask task) {
-    _showCreateTaskDialog(taskToEdit: task);
-  }
-
-  void _deleteMainTask(MainTask task) async {
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        title: Text('Delete Task'),
-        content: Text('Are you sure you want to delete this task?'),
-        actions: [
-          TextButton(
-            child: Text('Cancel'),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-          ElevatedButton(
-            child: Text('Delete'),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () async {
-              setState(() {
-                mainTasks.remove(task); // Görevi listeden kaldırıyoruz
-                if (selectedTask == task) {
-                  selectedTask = null;
-                }
-              });
-
-              // Excel dosyasından da sil
-              await excelManager.deleteMainTask(task.id, excelManager.filePath);
-              Navigator.of(context).pop();
-            },
-          ),
-        ],
-      );
-    },
-  );
+void _editMainTask(MainTask task) {
+  print('Editing task: ${task.name}');
+  _showCreateTaskDialog(taskToEdit: task).then((editedTask) {
+    if (editedTask != null) {
+      _updateTask(editedTask);
+    }
+  });
 }
+
 
 
 
@@ -862,30 +789,30 @@ Widget _buildImageUpload({
     );
   }
 
-  Widget _buildActionButtons({required VoidCallback onCancel, required VoidCallback onCreate}) {
-    return Container(
-      padding: EdgeInsets.all(20),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          TextButton(
-            child: Text('Cancel', style: TextStyle(color: AppColors.primary, fontSize: 14)),
-            onPressed: onCancel,
+  Widget _buildActionButtons({required VoidCallback onCancel, required VoidCallback onSave}) {
+  return Container(
+    padding: EdgeInsets.all(20),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        TextButton(
+          child: Text('Cancel', style: TextStyle(color: AppColors.primary, fontSize: 14)),
+          onPressed: onCancel,
+        ),
+        SizedBox(width: 16),
+        ElevatedButton(
+          child: Text('Save', style: TextStyle(color: Colors.white, fontSize: 14)),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           ),
-          SizedBox(width: 16),
-          ElevatedButton(
-            child: Text('Create', style: TextStyle(color: Colors.white, fontSize: 14)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            ),
-            onPressed: onCreate,
-          ),
-        ],
-      ),
-    );
-  }
+          onPressed: onSave,
+        ),
+      ],
+    ),
+  );
+}
 
   void _showAddPersonDialog(BuildContext context, Function(String) onAdd) {
     String newPerson = '';
@@ -927,15 +854,155 @@ Widget _buildImageUpload({
       },
     );
   }
-void _addNewTask(MainTask newTask) async {
-  setState(() {
-    mainTasks.add(newTask); // Görev listeye ekleniyor
-    mainTasks.sort((a, b) => b.startDate.compareTo(a.startDate)); // Görevler tarihe göre sıralanıyor
-  });
-
-  // Excel'e kaydediyoruz
-  await excelManager.addMainTask(newTask, excelManager.filePath);
+Future<void> _addNewTask(MainTask newTask) async {
+  try {
+    print('Yeni ana görev ekleniyor: ${newTask.name}');
+    await taskManager.addMainTask(newTask);
+    print('Yeni ana görev başarıyla eklendi: ${newTask.name}');
+    await _loadTasks();
+  } catch (e) {
+    print('Ana görev eklenirken hata oluştu: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Ana görev eklenirken bir hata oluştu')),
+    );
+  }
 }
 
+Future<void> _addNewSubTask(String mainTaskId, SubTask newSubTask) async {
+  try {
+    print('Yeni alt görev ekleniyor: ${newSubTask.name} (Ana Görev ID: $mainTaskId)');
+    await taskManager.addSubTask(mainTaskId, newSubTask);
+    print('Yeni alt görev başarıyla eklendi: ${newSubTask.name}');
+    await _loadTasks();
+  } catch (e) {
+    print('Alt görev eklenirken hata oluştu: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Alt görev eklenirken bir hata oluştu')),
+    );
+  }
+}
+
+Future<void> _updateTask(MainTask updatedTask) async {
+  try {
+    print('Ana görev güncelleniyor: ${updatedTask.name}');
+    await taskManager.updateMainTask(updatedTask);
+    print('Ana görev başarıyla güncellendi: ${updatedTask.name}');
+    await _loadTasks();
+  } catch (e) {
+    print('Ana görev güncellenirken hata oluştu: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Ana görev güncellenirken bir hata oluştu')),
+    );
+  }
+}
+
+Future<void> _updateSubTask(String mainTaskId, SubTask updatedSubTask) async {
+  try {
+    print('Alt görev güncelleniyor: ${updatedSubTask.name} (Ana Görev ID: $mainTaskId)');
+    await taskManager.updateSubTask(mainTaskId, updatedSubTask);
+    print('Alt görev başarıyla güncellendi: ${updatedSubTask.name}');
+    await _loadTasks();
+  } catch (e) {
+    print('Alt görev güncellenirken hata oluştu: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Alt görev güncellenirken bir hata oluştu')),
+    );
+  }
+}
+
+Future<void> _deleteMainTask(MainTask task) async {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: Text('Ana Görevi Sil'),
+        content: Text('Bu görevi ve ona bağlı tüm alt görevleri silmek istediğinizden emin misiniz?'),
+        actions: [
+          TextButton(
+            child: Text('İptal'),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          ElevatedButton(
+            child: Text('Sil'),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              try {
+                print('Ana görev siliniyor: ${task.name}');
+                await taskManager.deleteMainTask(task.id);
+                print('Ana görev ve bağlı alt görevler başarıyla silindi: ${task.name}');
+                Navigator.of(context).pop();
+                await _loadTasks();
+                if (selectedTask?.id == task.id) {
+                  setState(() {
+                    selectedTask = null;
+                  });
+                }
+              } catch (e) {
+                print('Ana görev silinirken hata oluştu: $e');
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Ana görev silinirken bir hata oluştu')),
+                );
+              }
+            },
+          ),
+        ],
+      );
+    },
+  );
+}
+
+Future<void> _deleteSubTask(String mainTaskId, String subTaskId) async {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: Text('Alt Görevi Sil'),
+        content: Text('Bu alt görevi silmek istediğinizden emin misiniz?'),
+        actions: [
+          TextButton(
+            child: Text('İptal'),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          ElevatedButton(
+            child: Text('Sil'),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              try {
+                print('Alt görev siliniyor: $subTaskId (Ana Görev ID: $mainTaskId)');
+                await taskManager.deleteSubTask(mainTaskId, subTaskId);
+                print('Alt görev başarıyla silindi: $subTaskId');
+                Navigator.of(context).pop();
+                await _loadTasks();
+              } catch (e) {
+                print('Alt görev silinirken hata oluştu: $e');
+                Navigator.of(context).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Alt görev silinirken bir hata oluştu')),
+                );
+              }
+            },
+          ),
+        ],
+      );
+    },
+  );
+}
+
+Future<void> _loadTasks() async {
+  try {
+    print('Görevler yükleniyor...');
+    var tasks = await taskManager.readTasks();
+    setState(() {
+      mainTasks = tasks;
+    });
+    print('Görevler başarıyla yüklendi. Toplam ana görev sayısı: ${mainTasks.length}');
+  } catch (e) {
+    print('Görevler yüklenirken hata oluştu: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Görevler yüklenirken bir hata oluştu')),
+    );
+  }
+}
 
 }

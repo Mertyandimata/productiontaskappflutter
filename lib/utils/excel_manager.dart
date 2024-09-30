@@ -1,358 +1,191 @@
-import 'dart:math';
-import 'dart:io';
-import 'package:etsu/models/tasks.dart';
-import 'package:excel/excel.dart';
-import 'package:flutter/services.dart' show rootBundle;
-import 'dart:typed_data';
+import 'dart:html' as html;
+import 'dart:convert';
+import '../models/tasks.dart';
 
-class ExcelManager {
-  final String filePath;
+class TextFileTaskManager {
+  static const String mainTasksKey = 'main_tasks';
+  static const String subTasksKey = 'sub_tasks';
 
-  ExcelManager(this.filePath);
+  Future<void> saveTasks(List<MainTask> tasks) async {
+    print('Saving tasks to local storage...');
+    final mainTasksJson = tasks.map((task) => _encodeMainTask(task)).toList();
+    final subTasksJson = tasks.expand((task) => task.subTasks.map((subTask) => _encodeSubTask(task.id, subTask))).toList();
 
-  // Benzersiz ID oluşturma
-  String generateId() {
-    return DateTime.now().millisecondsSinceEpoch.toString() + Random().nextInt(9999).toString();
+    html.window.localStorage[mainTasksKey] = json.encode(mainTasksJson);
+    html.window.localStorage[subTasksKey] = json.encode(subTasksJson);
+    print('Tasks saved successfully.');
   }
 
-  // Excel dosyasını Byte array üzerinden okuma
-  Future<List<MainTask>> readTasksFromFile(Uint8List fileBytes) async {
-    var excel = Excel.decodeBytes(fileBytes); // Dosyayı byte olarak decode ediyoruz
-
-    var mainTasks = <MainTask>[];
-    var subTasksMap = <String, List<SubTask>>{};
-
-    var mainTaskSheet = excel['MainTask'];
-    var subTaskSheet = excel['SubTask'];
-
-    // SubTask'leri okuma ve ilgili MainTask'e bağlama
-    if (subTaskSheet != null) {
-      for (var row in subTaskSheet.rows.skip(1)) {
-        var subTask = SubTask(
-          id: row[1]?.toString() ?? '',
-          name: row[2]?.toString() ?? '',
-          assignedTo: row[3]?.toString() ?? '',
-          dueDate: DateTime.parse(row[4]?.toString() ?? ''),
-          note: row[5]?.toString() ?? '',
-          status: SubTaskStatus.values.firstWhere(
-            (e) => e.toString() == 'SubTaskStatus.${row[6]?.toString()}',
-          ),
-          imageData: row[7]?.toString(),
-        );
-        var mainTaskId = row[0]?.toString();
-        if (mainTaskId != null) {
-          subTasksMap[mainTaskId] = subTasksMap[mainTaskId] ?? [];
-          subTasksMap[mainTaskId]!.add(subTask);
-        }
-      }
-    }
-
-    // MainTask'leri okuma
-    if (mainTaskSheet != null) {
-      for (var row in mainTaskSheet.rows.skip(1)) {
-        var mainTask = MainTask(
-          id: row[0]?.toString() ?? '',
-          name: row[1]?.toString() ?? '',
-          description: row[2]?.toString() ?? '',
-          peopleInvolved: (row[3]?.toString() ?? '').split(', '),
-          startDate: DateTime.parse(row[4]?.toString() ?? ''),
-          dueDate: row[5] != null ? DateTime.parse(row[5].toString()) : null,
-          department: row[6]?.toString() ?? '',
-          plant: row[7]?.toString() ?? '',
-          subTasks: subTasksMap[row[0]?.toString()] ?? [],
-          imageData: row[8]?.toString(),
-        );
-        mainTasks.add(mainTask);
-      }
-    }
-
-    return mainTasks;
-  }
-
-  // Excel dosyasını assets klasöründen okuma
-  Future<void> loadExcelFromAssets() async {
-    try {
-      ByteData data = await rootBundle.load('assets/data.xlsx');
-      var bytes = data.buffer.asUint8List();
-      var excel = Excel.decodeBytes(bytes);
-
-      // Sayfalar ve veriler
-      for (var table in excel.tables.keys) {
-        print(table); // Sayfa adı
-        print(excel.tables[table]!.maxRows); // Satır sayısı
-        for (var row in excel.tables[table]!.rows) {
-          print('$row');
-        }
-      }
-    } catch (e) {
-      print('Excel dosyası yüklenirken hata: $e');
-    }
-  }
-
-  // Excel'den verileri okuma
   Future<List<MainTask>> readTasks() async {
-    var file = File(filePath);
-    if (!await file.exists()) throw Exception('Excel dosyası bulunamadı!');
+    print('Reading tasks from local storage...');
+    try {
+      final mainTasksJson = html.window.localStorage[mainTasksKey];
+      final subTasksJson = html.window.localStorage[subTasksKey];
 
-    var bytes = await file.readAsBytes();
-    var excel = Excel.decodeBytes(bytes);
-
-    var mainTasks = <MainTask>[];
-    var subTasksMap = <String, List<SubTask>>{};
-
-    var mainTaskSheet = excel['MainTask'];
-    var subTaskSheet = excel['SubTask'];
-
-    // SubTask'leri okuma ve ilgili MainTask'e bağlama
-    if (subTaskSheet != null) {
-      for (var row in subTaskSheet.rows.skip(1)) {
-        var subTask = SubTask(
-          id: row[1]?.toString() ?? '',
-          name: row[2]?.toString() ?? '',
-          assignedTo: row[3]?.toString() ?? '',
-          dueDate: DateTime.parse(row[4]?.toString() ?? ''),
-          note: row[5]?.toString() ?? '',
-          status: SubTaskStatus.values.firstWhere(
-            (e) => e.toString() == 'SubTaskStatus.${row[6]?.toString()}',
-          ),
-          imageData: row[7]?.toString(),
-        );
-        var mainTaskId = row[0]?.toString();
-        if (mainTaskId != null) {
-          subTasksMap[mainTaskId] = subTasksMap[mainTaskId] ?? [];
-          subTasksMap[mainTaskId]!.add(subTask);
-        }
+      if (mainTasksJson == null || subTasksJson == null) {
+        print('No tasks found in local storage.');
+        return [];
       }
-    }
 
-    // MainTask'leri okuma
-    if (mainTaskSheet != null) {
-      for (var row in mainTaskSheet.rows.skip(1)) {
-        var mainTask = MainTask(
-          id: row[0]?.toString() ?? '',
-          name: row[1]?.toString() ?? '',
-          description: row[2]?.toString() ?? '',
-          peopleInvolved: (row[3]?.toString() ?? '').split(', '),
-          startDate: DateTime.parse(row[4]?.toString() ?? ''),
-          dueDate: row[5] != null ? DateTime.parse(row[5].toString()) : null,
-          department: row[6]?.toString() ?? '',
-          plant: row[7]?.toString() ?? '',
-          subTasks: subTasksMap[row[0]?.toString()] ?? [],
-          imageData: row[8]?.toString(),
-        );
-        mainTasks.add(mainTask);
+      final mainTasks = (json.decode(mainTasksJson) as List).map((taskJson) => _decodeMainTask(taskJson)).toList();
+      final subTasks = (json.decode(subTasksJson) as List).map((subTaskJson) => _decodeSubTask(subTaskJson)).toList();
+
+      for (var mainTask in mainTasks) {
+        mainTask.subTasks = subTasks.where((subTask) => subTask.mainTaskId == mainTask.id).toList();
       }
-    }
 
-    return mainTasks;
+      print('Tasks read successfully. Total main tasks: ${mainTasks.length}');
+      return mainTasks;
+    } catch (e) {
+      print('Error reading tasks: $e');
+      return [];
+    }
   }
 
-  dynamic toCellValue(dynamic value) {
-    if (value is String) {
-      return value;
-    } else if (value is int || value is double) {
-      return value;
-    } else if (value is DateTime) {
-      return value.toIso8601String();
+  Map<String, dynamic> _encodeMainTask(MainTask task) {
+    return {
+      'id': task.id,
+      'name': task.name,
+      'description': task.description,
+      'peopleInvolved': task.peopleInvolved,
+      'startDate': task.startDate.toIso8601String(),
+      'dueDate': task.dueDate?.toIso8601String(),
+      'department': task.department,
+      'plant': task.plant,
+      'imageData': task.imageData,
+    };
+  }
+
+  Map<String, dynamic> _encodeSubTask(String mainTaskId, SubTask subTask) {
+    return {
+      'mainTaskId': mainTaskId,
+      'id': subTask.id,
+      'name': subTask.name,
+      'assignedTo': subTask.assignedTo,
+      'dueDate': subTask.dueDate.toIso8601String(),
+      'note': subTask.note,
+      'status': subTask.status.toString().split('.').last,
+      'imageData': subTask.imageData,
+    };
+  }
+
+  MainTask _decodeMainTask(Map<String, dynamic> json) {
+    return MainTask(
+      id: json['id'],
+      name: json['name'],
+      description: json['description'],
+      peopleInvolved: List<String>.from(json['peopleInvolved']),
+      startDate: DateTime.parse(json['startDate']),
+      dueDate: json['dueDate'] != null ? DateTime.parse(json['dueDate']) : null,
+      department: json['department'],
+      plant: json['plant'],
+      imageData: json['imageData'],
+      subTasks: [],
+    );
+  }
+
+  SubTask _decodeSubTask(Map<String, dynamic> json) {
+    return SubTask(
+      id: json['id'],
+      name: json['name'],
+      assignedTo: json['assignedTo'],
+      dueDate: DateTime.parse(json['dueDate']),
+      note: json['note'],
+      status: SubTaskStatus.values.firstWhere(
+        (e) => e.toString() == 'SubTaskStatus.${json['status']}',
+        orElse: () => SubTaskStatus.backlog,
+      ),
+      imageData: json['imageData'],
+      mainTaskId: json['mainTaskId'],
+    );
+  }
+
+Future<void> addMainTask(MainTask task) async {
+  final tasks = await readTasks();
+  tasks.add(task);
+  print('Ana görev listesine eklendi: ${task.name}');
+  await saveTasks(tasks);
+  print('Ana görev kaydedildi: ${task.name}');
+}
+
+
+  Future<void> updateMainTask(MainTask updatedTask) async {
+    final tasks = await readTasks();
+    final index = tasks.indexWhere((t) => t.id == updatedTask.id);
+    if (index != -1) {
+      tasks[index] = updatedTask;
+      await saveTasks(tasks);
+      print('Main task updated: ${updatedTask.name}');
     } else {
-      return ''; // Null veya bilinmeyen tür için boş string
+      print('Main task not found for update: ${updatedTask.id}');
     }
   }
 
-  // Yeni MainTask ekleme
-  Future<void> addMainTask(MainTask task, String filePath) async {
-    var file = File(filePath);
-    var bytes = await file.readAsBytes();
-    var excel = Excel.decodeBytes(bytes);
-    var sheet = excel['MainTask'];
-
-    sheet.appendRow([
-      toCellValue(task.id), 
-      toCellValue(task.name),
-      toCellValue(task.description),
-      toCellValue(task.peopleInvolved.join(', ')),
-      toCellValue(task.startDate),
-      toCellValue(task.dueDate ?? ''),
-      toCellValue(task.department),
-      toCellValue(task.plant),
-      toCellValue(task.imageData ?? '')
-    ]);
-
-    saveExcel(excel, filePath);
+  Future<void> deleteMainTask(String taskId) async {
+    final tasks = await readTasks();
+    tasks.removeWhere((t) => t.id == taskId);
+    await saveTasks(tasks);
+    print('Main task deleted: $taskId');
   }
 
-  // Yeni SubTask ekleme
-  Future<void> addSubTask(String mainTaskId, SubTask subTask, String filePath) async {
-    var file = File(filePath);
-    var bytes = await file.readAsBytes();
-    var excel = Excel.decodeBytes(bytes);
-    var sheet = excel['SubTask'];
-
-    sheet.appendRow([
-      toCellValue(mainTaskId),
-      toCellValue(subTask.id),
-      toCellValue(subTask.name),
-      toCellValue(subTask.assignedTo),
-      toCellValue(subTask.dueDate),
-      toCellValue(subTask.note),
-      toCellValue(subTask.status.toString().split('.').last),
-      toCellValue(subTask.imageData ?? '')
-    ]);
-
-    saveExcel(excel, filePath);
+  Future<void> addSubTask(String mainTaskId, SubTask subTask) async {
+    final tasks = await readTasks();
+    final mainTaskIndex = tasks.indexWhere((t) => t.id == mainTaskId);
+    if (mainTaskIndex != -1) {
+      tasks[mainTaskIndex].subTasks.add(subTask);
+      await saveTasks(tasks);
+      print('Sub task added to main task: $mainTaskId');
+    } else {
+      print('Main task not found for adding sub task: $mainTaskId');
+    }
   }
 
-  // MainTask güncelleme
-  Future<void> updateMainTask(MainTask updatedTask, String filePath) async {
-    var file = File(filePath);
-    var bytes = await file.readAsBytes();
-    var excel = Excel.decodeBytes(bytes);
-    var sheet = excel['MainTask'];
-
-    if (sheet == null) throw Exception('MainTask sayfası bulunamadı.');
-
-    for (var i = 1; i < sheet.rows.length; i++) {
-      if (sheet.rows[i][0] == updatedTask.id) {
-        sheet.updateCell(
-          CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: i),
-          toCellValue(updatedTask.id),
-        );
-        sheet.updateCell(
-          CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: i),
-          toCellValue(updatedTask.name),
-        );
-        sheet.updateCell(
-          CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: i),
-          toCellValue(updatedTask.description),
-        );
-        sheet.updateCell(
-          CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: i),
-          toCellValue(updatedTask.peopleInvolved.join(', ')),
-        );
-        sheet.updateCell(
-          CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: i),
-          toCellValue(updatedTask.startDate.toIso8601String()),
-        );
-        sheet.updateCell(
-          CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: i),
-          toCellValue(updatedTask.dueDate?.toIso8601String() ?? ''),
-        );
-        sheet.updateCell(
-          CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: i),
-          toCellValue(updatedTask.department),
-        );
-        sheet.updateCell(
-          CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: i),
-          toCellValue(updatedTask.plant),
-        );
-        sheet.updateCell(
-          CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: i),
-          toCellValue(updatedTask.imageData ?? ''),
-        );
-        break;
+  Future<void> updateSubTask(String mainTaskId, SubTask updatedSubTask) async {
+    final tasks = await readTasks();
+    final mainTaskIndex = tasks.indexWhere((t) => t.id == mainTaskId);
+    if (mainTaskIndex != -1) {
+      final subTaskIndex = tasks[mainTaskIndex].subTasks.indexWhere((st) => st.id == updatedSubTask.id);
+      if (subTaskIndex != -1) {
+        tasks[mainTaskIndex].subTasks[subTaskIndex] = updatedSubTask;
+        await saveTasks(tasks);
+        print('Sub task updated in main task: $mainTaskId');
+      } else {
+        print('Sub task not found for update in main task: $mainTaskId');
       }
-    }
-
-    saveExcel(excel, filePath);
-  }
-
-  // SubTask güncelleme
-  Future<void> updateSubTask(String mainTaskId, SubTask updatedSubTask, String filePath) async {
-    var file = File(filePath);
-    var bytes = await file.readAsBytes();
-    var excel = Excel.decodeBytes(bytes);
-    var sheet = excel['SubTask'];
-
-    if (sheet == null) throw Exception('SubTask sayfası bulunamadı.');
-
-    for (var i = 1; i < sheet.rows.length; i++) {
-      if (sheet.rows[i][0] == mainTaskId && sheet.rows[i][1] == updatedSubTask.id) {
-        sheet.updateCell(
-          CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: i),
-          toCellValue(mainTaskId),
-        );
-        sheet.updateCell(
-          CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: i),
-          toCellValue(updatedSubTask.id),
-        );
-        sheet.updateCell(
-          CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: i),
-          toCellValue(updatedSubTask.name),
-        );
-        sheet.updateCell(
-          CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: i),
-          toCellValue(updatedSubTask.assignedTo),
-        );
-        sheet.updateCell(
-          CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: i),
-          toCellValue(updatedSubTask.dueDate.toIso8601String()),
-        );
-        sheet.updateCell(
-          CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: i),
-          toCellValue(updatedSubTask.note),
-        );
-        sheet.updateCell(
-          CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: i),
-          toCellValue(updatedSubTask.status.toString().split('.').last),
-        );
-        sheet.updateCell(
-          CellIndex.indexByColumnRow(columnIndex: 7, rowIndex: i),
-          toCellValue(updatedSubTask.imageData ?? ''),
-        );
-        break;
-      }
-    }
-
-    saveExcel(excel, filePath);
-  }
-
-  // MainTask silme
-  Future<void> deleteMainTask(String taskId, String filePath) async {
-    var file = File(filePath);
-    var bytes = await file.readAsBytes();
-    var excel = Excel.decodeBytes(bytes);
-    var mainTaskSheet = excel['MainTask'];
-    var subTaskSheet = excel['SubTask'];
-
-    if (mainTaskSheet == null) throw Exception('MainTask sayfası bulunamadı.');
-
-    List<int> rowsToRemove = [];
-
-    // MainTask'i silmek için satırları bul
-    for (var i = 0; i < mainTaskSheet.rows.length; i++) {
-      if (mainTaskSheet.rows[i][0]?.toString() == taskId) {
-        rowsToRemove.add(i);
-      }
-    }
-
-    // Belirlenen satırları sil
-    for (var rowIndex in rowsToRemove.reversed) {
-      mainTaskSheet.removeRow(rowIndex);
-    }
-
-    // İlgili SubTask'leri sil
-    if (subTaskSheet != null) {
-      List<int> subTaskRowsToRemove = [];
-      for (var i = 0; i < subTaskSheet.rows.length; i++) {
-        if (subTaskSheet.rows[i][0]?.toString() == taskId) {
-          subTaskRowsToRemove.add(i);
-        }
-      }
-      for (var rowIndex in subTaskRowsToRemove.reversed) {
-        subTaskSheet.removeRow(rowIndex);
-      }
-    }
-
-    saveExcel(excel, filePath);
-  }
-
-  // Excel dosyasını kaydetme
-  Future<void> saveExcel(Excel excel, String filePath) async {
-    List<int>? fileBytes = excel.save();
-    if (fileBytes != null) {
-      File(filePath)
-        ..createSync(recursive: true)
-        ..writeAsBytesSync(fileBytes);
+    } else {
+      print('Main task not found for updating sub task: $mainTaskId');
     }
   }
+
+  Future<void> deleteSubTask(String mainTaskId, String subTaskId) async {
+    final tasks = await readTasks();
+    final mainTaskIndex = tasks.indexWhere((t) => t.id == mainTaskId);
+    if (mainTaskIndex != -1) {
+      tasks[mainTaskIndex].subTasks.removeWhere((st) => st.id == subTaskId);
+      await saveTasks(tasks);
+      print('Sub task deleted from main task: $mainTaskId');
+    } else {
+      print('Main task not found for deleting sub task: $mainTaskId');
+    }
+  }
+  String exportToCSV(List<MainTask> tasks) {
+  final csvData = [
+    ['ID', 'Name', 'Description', 'People Involved', 'Start Date', 'Due Date', 'Department', 'Plant', 'Completion Rate', 'Sub Tasks'],
+    ...tasks.map((task) => [
+      task.id,
+      task.name,
+      task.description,
+      task.peopleInvolved.join(', '),
+      task.startDate.toIso8601String(),
+      task.dueDate?.toIso8601String() ?? '',
+      task.department,
+      task.plant,
+      task.completionRate.toString(),
+      task.subTasks.map((st) => '${st.name} (${st.status})').join('; ')
+    ])
+  ];
+
+  return csvData.map((row) => row.join(',')).join('\n');
+}
+
 }

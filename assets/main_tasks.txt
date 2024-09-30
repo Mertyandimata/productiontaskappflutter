@@ -1,0 +1,6 @@
+1|Optimize Production Line|Improve efficiency of the main production line|John Doe,Jane Smith|2024-09-20T00:00:00.000|2024-10-20T00:00:00.000|Hot Water|DM1|
+2|Install New Press Machine|Install and calibrate the new press machine in the plant.|Alice Johnson,Mark Thompson|2024-09-25T00:00:00.000|2024-10-25T00:00:00.000|Pressing|DC3|
+3|Cold Water System Maintenance|Perform scheduled maintenance on the cold water system.|Samantha Lee,Chris Evans|2024-09-15T00:00:00.000|2024-10-10T00:00:00.000|Cold Water|DS5|
+4|Upgrade Machining Equipment|Upgrade the machining equipment for better precision.|Robert Downey,Natalie Portman|2024-09-10T00:00:00.000|2024-10-15T00:00:00.000|Machining|DB4|
+5|Energy Efficiency Audit|Conduct an energy audit to find ways to reduce electricity usage.|Bruce Wayne,Diana Prince|2024-09-27T00:00:00.000|2024-10-30T00:00:00.000|Hot Water|DM1|
+6|Inspect Safety Equipment|Check the condition of all safety equipment in the plant.|Clark Kent,Barry Allen|2024-09-23T00:00:00.000|2024-10-21T00:00:00.000|Pressing|DS5|

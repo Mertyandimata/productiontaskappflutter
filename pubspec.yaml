@@ -32,4 +32,5 @@ flutter:
   # Burada assets kısmı düzeltilmiş şekilde
   assets:
     - assets/logo2.png
-    - assets/data.xlsx
+    - assets/main_tasks.txt
+    - assets/sub_tasks.txt

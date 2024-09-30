@@ -1,0 +1,9 @@
+1|1|Analyze current workflow|John Doe|2024-10-05T00:00:00.000|Identify bottlenecks in the production process|inProgress|
+1|2|Implement new scheduling system|Jane Smith|2024-10-10T00:00:00.000|Introduce a new system to reduce downtime|backlog|
+2|3|Machine setup and calibration|Alice Johnson|2024-10-15T00:00:00.000|Ensure machine is properly calibrated|backlog|
+4|4|Order new parts|Natalie Portman|2024-10-05T00:00:00.000|Ensure all new parts are ordered and delivered on time|waiting|
+5|5|Collect energy usage data|Bruce Wayne|2024-10-07T00:00:00.000|Review current energy consumption metrics|inProgress|
+5|6|Present findings to management|Diana Prince|2024-10-20T00:00:00.000|Show potential areas for reducing energy usage|backlog|
+5|13|Present findings to management|Diana Prince|2024-10-20T00:00:00.000|Show potential areas for reducing energy usage|backlog|
+5|14|Present findings to management|Diana Prince|2024-10-20T00:00:00.000|Show potential areas for reducing energy usage|backlog|
+6|7|Inspect fire extinguishers|Clark Kent|2024-10-14T00:00:00.000|Ensure all extinguishers are up to date|inProgress|

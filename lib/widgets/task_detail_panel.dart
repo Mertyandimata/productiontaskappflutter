@@ -635,7 +635,7 @@ Widget _getStatusIcon(SubTaskStatus status) {
                         dueDate: dueDate,
                         note: note,
                         status: status,
-                        imageData: imageData,
+                        imageData: imageData, mainTaskId: '',
                       );
                       setState(() {
                         if (subTask == null) {
