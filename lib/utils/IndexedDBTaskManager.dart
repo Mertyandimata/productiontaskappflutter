@@ -1,54 +1,57 @@
 import 'package:idb_shim/idb.dart';
 import 'package:idb_shim/idb_browser.dart';
-import 'dart:io' as io; // Diğer platformlar için
 import '../models/tasks.dart';
 
 class IndexedDBTaskManager {
   static const String dbName = 'TaskDatabase';
-  static const int dbVersion = 1;
+  static const int dbVersion = 2;
   static const String mainTasksStore = 'main_tasks';
   static const String subTasksStore = 'sub_tasks';
 
   Database? _db;
 
-  // Veritabanını başlatma fonksiyonu
-Future<void> _initDB() async {
-
-
-
-  _db = await idbFactoryBrowser.open(dbName, version: dbVersion, onUpgradeNeeded: _initializeDatabase);
-  print("IndexedDB veritabanı başarıyla açıldı: $dbName");
-}
-  // Veritabanı tablolarını oluşturma
-  void _initializeDatabase(VersionChangeEvent e) {
-    Database db = (e.target as Request).result as Database;
-    db.createObjectStore(mainTasksStore, keyPath: 'id'); // Ana görevler için store
-    db.createObjectStore(subTasksStore, keyPath: 'id');  // Alt görevler için store
+  Future<void> _initDB() async {
+    _db = await idbFactoryBrowser.open(dbName, version: dbVersion, onUpgradeNeeded: _onUpgradeNeeded);
+    print("IndexedDB veritabanı başarıyla açıldı: $dbName");
   }
 
-  // Ana görevleri veritabanına kaydetme
+  void _onUpgradeNeeded(VersionChangeEvent event) {
+    Database db = event.database;
+    
+    if (!db.objectStoreNames.contains(mainTasksStore)) {
+      db.createObjectStore(mainTasksStore, keyPath: 'id');
+    }
+    
+    if (!db.objectStoreNames.contains(subTasksStore)) {
+      ObjectStore subStore = db.createObjectStore(subTasksStore, keyPath: 'id');
+      subStore.createIndex('mainTaskId', 'mainTaskId', unique: false);
+    } else {
+      ObjectStore subStore = event.transaction!.objectStore(subTasksStore);
+      if (!subStore.indexNames.contains('mainTaskId')) {
+        subStore.createIndex('mainTaskId', 'mainTaskId', unique: false);
+      }
+    }
+  }
+
   Future<void> saveTasks(List<MainTask> tasks) async {
     await _initDB();
     Transaction txn = _db!.transaction([mainTasksStore, subTasksStore], idbModeReadWrite);
     ObjectStore mainTaskStore = txn.objectStore(mainTasksStore);
     ObjectStore subTaskStore = txn.objectStore(subTasksStore);
 
-    // Tüm store'ları temizleyelim
     await mainTaskStore.clear();
     await subTaskStore.clear();
 
     for (var task in tasks) {
-      await mainTaskStore.put(_encodeMainTask(task)); // Ana görevleri ekle
-
+      await mainTaskStore.put(_encodeMainTask(task));
       for (var subTask in task.subTasks) {
-        await subTaskStore.put(_encodeSubTask(task.id, subTask)); // Alt görevleri ekle
+        await subTaskStore.put(_encodeSubTask(task.id, subTask));
       }
     }
     await txn.completed;
     print("Tüm görevler IndexedDB'ye başarıyla kaydedildi.");
   }
 
-  // Ana görevleri okuma
   Future<List<MainTask>> readTasks() async {
     await _initDB();
     Transaction txn = _db!.transaction([mainTasksStore, subTasksStore], idbModeReadOnly);
@@ -56,41 +59,111 @@ Future<void> _initDB() async {
     ObjectStore subTaskStore = txn.objectStore(subTasksStore);
 
     List<MainTask> mainTasks = [];
-    List<SubTask> subTasks = [];
+    Map<String, List<SubTask>> subTasksMap = {};
 
-    // Tüm ana görevleri oku
     await mainTaskStore.openCursor(autoAdvance: true).listen((cursor) {
       final mainTask = _decodeMainTask(cursor.value as Map<String, dynamic>);
       mainTasks.add(mainTask);
+      subTasksMap[mainTask.id] = [];
     }).asFuture();
 
-    // Tüm alt görevleri oku
     await subTaskStore.openCursor(autoAdvance: true).listen((cursor) {
       final subTask = _decodeSubTask(cursor.value as Map<String, dynamic>);
-      subTasks.add(subTask);
+      if (subTasksMap.containsKey(subTask.mainTaskId)) {
+        subTasksMap[subTask.mainTaskId]!.add(subTask);
+      }
     }).asFuture();
 
-    // Ana görevlere bağlı alt görevleri ekle
     for (var mainTask in mainTasks) {
-      mainTask.subTasks = subTasks.where((subTask) => subTask.mainTaskId == mainTask.id).toList();
+      mainTask.subTasks = subTasksMap[mainTask.id] ?? [];
     }
 
-    print("Ana görevler başarıyla okundu. Toplam görev sayısı: ${mainTasks.length}");
+    print("Ana görevler ve alt görevler başarıyla okundu. Toplam ana görev sayısı: ${mainTasks.length}");
     return mainTasks;
   }
 
-  // Ana görev ekleme
   Future<void> addMainTask(MainTask task) async {
     await _initDB();
-    Transaction txn = _db!.transaction([mainTasksStore], idbModeReadWrite);
+    Transaction txn = _db!.transaction([mainTasksStore, subTasksStore], idbModeReadWrite);
     ObjectStore mainTaskStore = txn.objectStore(mainTasksStore);
+    ObjectStore subTaskStore = txn.objectStore(subTasksStore);
 
     await mainTaskStore.put(_encodeMainTask(task));
+    for (var subTask in task.subTasks) {
+      await subTaskStore.put(_encodeSubTask(task.id, subTask));
+    }
     await txn.completed;
-    print('Ana görev başarıyla kaydedildi: ${task.name}');
+    print('Ana görev ve alt görevleri başarıyla kaydedildi: ${task.name}');
+  }
+ Future<void> updateMainTask(MainTask updatedTask) async {
+    await _initDB();
+    Transaction txn = _db!.transaction([mainTasksStore, subTasksStore], idbModeReadWrite);
+    ObjectStore mainTaskStore = txn.objectStore(mainTasksStore);
+    ObjectStore subTaskStore = txn.objectStore(subTasksStore);
+
+    await mainTaskStore.put(_encodeMainTask(updatedTask));
+    
+    try {
+      Index mainTaskIdIndex = subTaskStore.index('mainTaskId');
+      await mainTaskIdIndex.openCursor(key: updatedTask.id).listen((cursor) {
+        if (cursor != null) {
+          cursor.delete();
+          cursor.next();
+        }
+      }).asFuture();
+    } catch (e) {
+      print('Alt görevleri silerken hata oluştu: $e');
+      await subTaskStore.openCursor().listen((cursor) {
+        if (cursor != null) {
+          Map<String, dynamic> value = cursor.value as Map<String, dynamic>;
+          if (value['mainTaskId'] == updatedTask.id) {
+            cursor.delete();
+          }
+          cursor.next();
+        }
+      }).asFuture();
+    }
+
+    for (var subTask in updatedTask.subTasks) {
+      await subTaskStore.put(_encodeSubTask(updatedTask.id, subTask));
+    }
+
+    await txn.completed;
+    print('Ana görev ve alt görevleri başarıyla güncellendi: ${updatedTask.name}');
+  }
+ Future<void> deleteMainTask(String taskId) async {
+    await _initDB();
+    Transaction txn = _db!.transaction([mainTasksStore, subTasksStore], idbModeReadWrite);
+    ObjectStore mainTaskStore = txn.objectStore(mainTasksStore);
+    ObjectStore subTaskStore = txn.objectStore(subTasksStore);
+
+    await mainTaskStore.delete(taskId);
+    
+    try {
+      Index mainTaskIdIndex = subTaskStore.index('mainTaskId');
+      await mainTaskIdIndex.openCursor(key: taskId).listen((cursor) {
+        if (cursor != null) {
+          cursor.delete();
+          cursor.next();
+        }
+      }).asFuture();
+    } catch (e) {
+      print('Alt görevleri silerken hata oluştu: $e');
+      await subTaskStore.openCursor().listen((cursor) {
+        if (cursor != null) {
+          Map<String, dynamic> value = cursor.value as Map<String, dynamic>;
+          if (value['mainTaskId'] == taskId) {
+            cursor.delete();
+          }
+          cursor.next();
+        }
+      }).asFuture();
+    }
+
+    await txn.completed;
+    print('Ana görev ve ilişkili alt görevler başarıyla silindi: $taskId');
   }
 
-  // Alt görev ekleme
   Future<void> addSubTask(String mainTaskId, SubTask subTask) async {
     await _initDB();
     Transaction txn = _db!.transaction([subTasksStore], idbModeReadWrite);
@@ -101,18 +174,6 @@ Future<void> _initDB() async {
     print('Alt görev başarıyla eklendi: ${subTask.name}');
   }
 
-  // Ana görev güncelleme
-  Future<void> updateMainTask(MainTask updatedTask) async {
-    await _initDB();
-    Transaction txn = _db!.transaction([mainTasksStore], idbModeReadWrite);
-    ObjectStore mainTaskStore = txn.objectStore(mainTasksStore);
-
-    await mainTaskStore.put(_encodeMainTask(updatedTask));
-    await txn.completed;
-    print('Ana görev başarıyla güncellendi: ${updatedTask.name}');
-  }
-
-  // Alt görev güncelleme
   Future<void> updateSubTask(String mainTaskId, SubTask updatedSubTask) async {
     await _initDB();
     Transaction txn = _db!.transaction([subTasksStore], idbModeReadWrite);
@@ -123,20 +184,6 @@ Future<void> _initDB() async {
     print('Alt görev başarıyla güncellendi: ${updatedSubTask.name}');
   }
 
-  // Ana görev silme
-  Future<void> deleteMainTask(String taskId) async {
-    await _initDB();
-    Transaction txn = _db!.transaction([mainTasksStore, subTasksStore], idbModeReadWrite);
-    ObjectStore mainTaskStore = txn.objectStore(mainTasksStore);
-    ObjectStore subTaskStore = txn.objectStore(subTasksStore);
-
-    await mainTaskStore.delete(taskId);
-    await subTaskStore.delete(taskId); // Ana görevle ilişkili alt görevler de silinebilir
-    await txn.completed;
-    print('Ana görev başarıyla silindi: $taskId');
-  }
-
-  // Alt görev silme
   Future<void> deleteSubTask(String mainTaskId, String subTaskId) async {
     await _initDB();
     Transaction txn = _db!.transaction([subTasksStore], idbModeReadWrite);
@@ -147,25 +194,41 @@ Future<void> _initDB() async {
     print('Alt görev başarıyla silindi: $subTaskId');
   }
 
-  // Ana ve alt görevleri CSV formatında dışa aktarma
-  String exportToCSV(List<MainTask> tasks) {
-    final csvData = [
-      ['ID', 'Name', 'Description', 'People Involved', 'Start Date', 'Due Date', 'Department', 'Plant', 'Completion Rate', 'Sub Tasks'],
-      ...tasks.map((task) => [
-        task.id,
-        task.name,
-        task.description,
-        task.peopleInvolved.join(', '),
-        task.startDate.toIso8601String(),
-        task.dueDate?.toIso8601String() ?? '',
-        task.department,
-        task.plant,
-        task.completionRate.toString(),
-        task.subTasks.map((st) => '${st.name} (${st.status})').join('; ')
-      ])
-    ];
+  Future<List<String>> exportToCSV() async {
+    await _initDB();
+    Transaction txn = _db!.transaction([mainTasksStore, subTasksStore], idbModeReadOnly);
+    ObjectStore mainTaskStore = txn.objectStore(mainTasksStore);
+    ObjectStore subTaskStore = txn.objectStore(subTasksStore);
 
-    return csvData.map((row) => row.join(',')).join('\n');
+    List<MainTask> mainTasks = [];
+    List<SubTask> allSubTasks = [];
+
+    await mainTaskStore.openCursor(autoAdvance: true).listen((cursor) {
+      final mainTask = _decodeMainTask(cursor.value as Map<String, dynamic>);
+      mainTasks.add(mainTask);
+    }).asFuture();
+
+    await subTaskStore.openCursor(autoAdvance: true).listen((cursor) {
+      final subTask = _decodeSubTask(cursor.value as Map<String, dynamic>);
+      allSubTasks.add(subTask);
+    }).asFuture();
+
+    // Ana görevler için CSV
+    String mainTasksCSV = 'ID,Name,Description,People Involved,Start Date,Due Date,Department,Plant,Completion Rate\n';
+    for (var task in mainTasks) {
+      mainTasksCSV += '${task.id},"${task.name}","${task.description}","${task.peopleInvolved.join(', ')}",'
+          '${task.startDate.toIso8601String()},${task.dueDate?.toIso8601String() ?? ''},'
+          '${task.department},${task.plant},${task.completionRate}\n';
+    }
+
+    // Alt görevler için CSV
+    String subTasksCSV = 'ID,Main Task ID,Name,Assigned To,Due Date,Note,Status\n';
+    for (var subTask in allSubTasks) {
+      subTasksCSV += '${subTask.id},${subTask.mainTaskId},"${subTask.name}","${subTask.assignedTo}",'
+          '${subTask.dueDate.toIso8601String()},"${subTask.note}",${subTask.status}\n';
+    }
+
+    return [mainTasksCSV, subTasksCSV];
   }
 
   Map<String, dynamic> _encodeMainTask(MainTask task) {
@@ -184,8 +247,8 @@ Future<void> _initDB() async {
 
   Map<String, dynamic> _encodeSubTask(String mainTaskId, SubTask subTask) {
     return {
-      'mainTaskId': mainTaskId,
       'id': subTask.id,
+      'mainTaskId': mainTaskId,
       'name': subTask.name,
       'assignedTo': subTask.assignedTo,
       'dueDate': subTask.dueDate.toIso8601String(),

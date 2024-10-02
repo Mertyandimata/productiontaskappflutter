@@ -73,6 +73,36 @@ Future<void> _initTaskManager() async {
 }
 
 
+  void _downloadDatabase() async {
+    try {
+      List<String> csvData = await taskManager.exportToCSV();
+      
+      // Ana görevler CSV'sini indir
+      _downloadCSV(csvData[0], 'main_tasks.csv');
+      
+      // Alt görevler CSV'sini indir
+      _downloadCSV(csvData[1], 'sub_tasks.csv');
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Database exported successfully')),
+      );
+    } catch (e) {
+      print('Veritabanı dışa aktarılırken hata oluştu: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('An error occurred while exporting the database')),
+      );
+    }
+  }
+
+  void _downloadCSV(String csvContent, String fileName) {
+    final bytes = utf8.encode(csvContent);
+    final blob = html.Blob([bytes]);
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    final anchor = html.AnchorElement(href: url)
+      ..setAttribute("download", fileName)
+      ..click();
+    html.Url.revokeObjectUrl(url);
+  }
 
 
 
@@ -126,7 +156,7 @@ Future<void> _initTaskManager() async {
     SizedBox(width: 16),
     IconButton(
       icon: Icon(Icons.download, color: AppColors.primary),
-      onPressed: null,//_downloadDatabase,
+      onPressed: _downloadDatabase,//_downloadDatabase,
       tooltip: 'Download Database',
     ),
   ],
@@ -1065,24 +1095,24 @@ Future<void> _addNewTask(MainTask newTask) async {
     print('Yeni ana görev başarıyla eklendi: ${newTask.name}');
     await _loadTasks();
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Ana görev başarıyla eklendi: ${newTask.name}')),
+      SnackBar(content: Text('Main task successfully added: ${newTask.name}')),
     );
   } catch (e) {
     print('Ana görev eklenirken hata oluştu: $e');
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Ana görev eklenirken bir hata oluştu')),
+      SnackBar(content: Text('An error occurred while adding the main task')),
     );
   }
 }
 Future<void> _addNewSubTask(String mainTaskId, SubTask newSubTask) async {
   try {
-    await taskManager.addSubTask(mainTaskId, newSubTask); // IndexedDB'ye alt görev ekler
+    await taskManager.addSubTask(mainTaskId, newSubTask);
     print('Yeni alt görev başarıyla eklendi: ${newSubTask.name}');
     await _loadTasks();
   } catch (e) {
     print('Alt görev eklenirken hata oluştu: $e');
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Alt görev eklenirken bir hata oluştu')),
+      SnackBar(content: Text('An error occurred while adding a subtask')),
     );
   }
 }
@@ -1095,7 +1125,21 @@ Future<void> _updateTask(MainTask updatedTask) async {
   } catch (e) {
     print('Ana görev güncellenirken hata oluştu: $e');
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Ana görev güncellenirken bir hata oluştu')),
+      SnackBar(content: Text('An error occurred while updating the main task')),
+    );
+  }
+}
+
+
+Future<void> _updateSubTask(String mainTaskId, SubTask updatedSubTask) async {
+  try {
+    await taskManager.updateSubTask(mainTaskId, updatedSubTask);
+    print('Alt görev başarıyla güncellendi: ${updatedSubTask.name}');
+    await _loadTasks();
+  } catch (e) {
+    print('Alt görev güncellenirken hata oluştu: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('An error occurred while updating the subtask')),
     );
   }
 }
@@ -1108,14 +1152,17 @@ Future<void> _deleteMainTask(MainTask task) async {
   } catch (e) {
     print('Ana görev silinirken hata oluştu: $e');
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Ana görev silinirken bir hata oluştu')),
+      SnackBar(content: Text('An error occurred while deleting the main task')),
     );
   }
 }
 
+
+
+
 Future<void> _loadTasks() async {
   try {
-    var tasks = await taskManager.readTasks(); // IndexedDB'den tüm görevleri yükler
+    var tasks = await taskManager.readTasks();
     setState(() {
       mainTasks = tasks;
     });
@@ -1123,7 +1170,7 @@ Future<void> _loadTasks() async {
   } catch (e) {
     print('Görevler yüklenirken hata oluştu: $e');
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Görevler yüklenirken bir hata oluştu')),
+      SnackBar(content: Text('An error occurred while loading tasks')),
     );
   }
 }
