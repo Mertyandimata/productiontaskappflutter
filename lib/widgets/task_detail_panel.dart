@@ -27,45 +27,54 @@ class TaskDetailPanel extends StatefulWidget {
 
 class _TaskDetailPanelState extends State<TaskDetailPanel> {
   int touchedIndex = -1;
-@override
-Widget build(BuildContext context) {
-  return Container(
-    width: MediaQuery.of(context).size.width * 1,
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.only(
-        topLeft: Radius.circular(20),
-        bottomLeft: Radius.circular(20),
-      ),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black12,
-          blurRadius: 5,
-          offset: Offset(-2, 0),
-        ),
-      ],
-    ),
-    child: Column(
-      children: [
-        _buildHeader(),
-        Expanded(
-          child: ListView(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            children: [
-              _buildDetailSection(),
-              _buildDivider(),
-              _buildPeopleInvolvedSection(),
-              _buildDivider(),
-              _buildSubtasksSection(),
-            ],
-          ),
-        ),
-      ],
-    ),
-  );
-}
 
-  Widget _buildHeader() {
+
+@override
+  Widget build(BuildContext context) {
+    // Ekran genişliğine göre panel genişliğini ayarla
+    double panelWidth = MediaQuery.of(context).size.width;
+    if (MediaQuery.of(context).size.width > 1200) {
+      panelWidth = 1200; // Geniş ekranlar için maksimum genişlik
+    } else if (MediaQuery.of(context).size.width > 600) {
+      panelWidth = MediaQuery.of(context).size.width * 0.8; // Orta boy ekranlar için
+    }
+
+    return Container(
+      width: panelWidth,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(20),
+          bottomLeft: Radius.circular(20),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 5,
+            offset: Offset(-2, 0),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          _buildHeader(),
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              children: [
+                _buildDetailSection(),
+                _buildDivider(),
+                _buildPeopleInvolvedSection(),
+                _buildDivider(),
+                _buildSubtasksSection(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+ Widget _buildHeader() {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -75,19 +84,25 @@ Widget build(BuildContext context) {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            widget.task.name,
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+          Expanded(
+            child: Text(
+              widget.task.name,
+              style: TextStyle(
+                fontSize: MediaQuery.of(context).size.width > 600 ? 20 : 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
           IconButton(
-            icon: Icon(Icons.close, color: Colors.white, size: 20),
+            icon: Icon(Icons.close, color: Colors.white, size: 24),
             onPressed: widget.onClose,
           ),
         ],
       ),
     );
   }
-
 Widget _buildDetailSection() {
   return Padding(
     padding: EdgeInsets.all(16),
@@ -96,44 +111,80 @@ Widget _buildDetailSection() {
       children: [
         Text(
           'Task Details',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
-        ),
-        SizedBox(height: 8),
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildDetailRow('Description', widget.task.description),
-                    _buildDetailRow('Start Date', DateFormat('MMM d, yyyy').format(widget.task.startDate)),
-                    if (widget.task.dueDate != null)
-                      _buildDetailRow('Due Date', DateFormat('MMM d, yyyy').format(widget.task.dueDate!)),
-                    _buildDetailRow('Department', widget.task.department),
-                    _buildDetailRow('Plant', widget.task.plant),
-                  ],
-                ),
-              ),
-              SizedBox(width: 16),
-              Expanded(
-                child: widget.task.imageData != null
-                    ? _buildTaskImage(widget.task.imageData!)
-                    : _buildImageUpload(
-                        imageData: null,
-                        onImageSelected: (data) {
-                          setState(() {
-                            widget.task.imageData = data;
-                            widget.onTaskUpdated(widget.task);
-                          });
-                        },
-                      ),
-              ),
-            ],
-          ),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primary),
         ),
         SizedBox(height: 16),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth > 600) {
+              // Geniş ekranlar için yan yana layout
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildDetailRow('Description', widget.task.description),
+                        _buildDetailRow('Start Date', DateFormat('MMM d, yyyy').format(widget.task.startDate)),
+                        if (widget.task.dueDate != null)
+                          _buildDetailRow('Due Date', DateFormat('MMM d, yyyy').format(widget.task.dueDate!)),
+                        _buildDetailRow('Department', widget.task.department),
+                        _buildDetailRow('Plant', widget.task.plant),
+                      ],
+                    ),
+                  ),
+                  SizedBox(width: 32),
+                  Expanded(
+                    flex: 1,
+                    child: widget.task.imageData != null
+                        ? _buildTaskImage(widget.task.imageData!)
+                        : _buildImageUpload(
+                            imageData: null,
+                            onImageSelected: (data) {
+                              setState(() {
+                                widget.task.imageData = data;
+                                widget.onTaskUpdated(widget.task);
+                              });
+                            },
+                          ),
+                  ),
+                ],
+              );
+            } else {
+              // Dar ekranlar için üst üste layout
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildDetailRow('Description', widget.task.description),
+                      _buildDetailRow('Start Date', DateFormat('MMM d, yyyy').format(widget.task.startDate)),
+                      if (widget.task.dueDate != null)
+                        _buildDetailRow('Due Date', DateFormat('MMM d, yyyy').format(widget.task.dueDate!)),
+                      _buildDetailRow('Department', widget.task.department),
+                      _buildDetailRow('Plant', widget.task.plant),
+                    ],
+                  ),
+                  SizedBox(height: 16),
+                  widget.task.imageData != null
+                      ? _buildTaskImage(widget.task.imageData!)
+                      : _buildImageUpload(
+                          imageData: null,
+                          onImageSelected: (data) {
+                            setState(() {
+                              widget.task.imageData = data;
+                              widget.onTaskUpdated(widget.task);
+                            });
+                          },
+                        ),
+                ],
+              );
+            }
+          },
+        ),
       ],
     ),
   );
@@ -205,54 +256,6 @@ void _showEnlargedImage(String imageData) {
     );
   }
 
- Widget _buildStatusDonutChart() {
-    final Map<SubTaskStatus, int> statusCounts = {
-      for (var status in SubTaskStatus.values) status: 0
-    };
-    for (var subTask in widget.task.subTasks) {
-      statusCounts[subTask.status] = (statusCounts[subTask.status] ?? 0) + 1;
-    }
-
-    final bool allZero = statusCounts.values.every((count) => count == 0);
-
-    return AspectRatio(
-      aspectRatio: 1.3,
-      child: Column(
-        children: <Widget>[
-          Expanded(
-            child: PieChart(
-              PieChartData(
-                pieTouchData: PieTouchData(
-                  touchCallback: (FlTouchEvent event, pieTouchResponse) {
-                    setState(() {
-                      if (!event.isInterestedForInteractions ||
-                          pieTouchResponse == null ||
-                          pieTouchResponse.touchedSection == null) {
-                        touchedIndex = -1;
-                        return;
-                      }
-                      touchedIndex = pieTouchResponse.touchedSection!.touchedSectionIndex;
-                    });
-                  },
-                ),
-                borderData: FlBorderData(show: false),
-                sectionsSpace: 0,
-                centerSpaceRadius: 0,
-                sections: allZero ? _getDefaultSections() : showingSections(statusCounts),
-              ),
-            ),
-          ),
-          SizedBox(height: 16),
-          Wrap(
-            spacing: 16,
-            runSpacing: 8,
-            alignment: WrapAlignment.center,
-            children: _buildLegends(statusCounts),
-          ),
-        ],
-      ),
-    );
-  }
 
   List<PieChartSectionData> _getDefaultSections() {
     return SubTaskStatus.values.map((status) {
@@ -285,19 +288,6 @@ void _showEnlargedImage(String imageData) {
         titleStyle: TextStyle(fontSize: fontSize, fontWeight: FontWeight.bold, color: Colors.white, shadows: shadows),
       );
     });
-  }
-
-  List<Widget> _buildLegends(Map<SubTaskStatus, int> statusCounts) {
-    return SubTaskStatus.values.map((status) {
-      final isSelected = SubTaskStatus.values.indexOf(status) == touchedIndex;
-      return _buildIndicator(
-        color: _getStatusColor(status),
-        text: '${_getStatusString(status)}: ${statusCounts[status]}',
-        isSquare: false,
-        size: 6, // Legend noktalarının boyutunu 6 olarak ayarladık
-        textColor: isSelected ? Colors.black : Colors.grey,
-      );
-    }).toList();
   }
 
   Widget _buildIndicator({
@@ -357,72 +347,92 @@ void _showEnlargedImage(String imageData) {
   }
 
   Widget _buildPeopleInvolvedSection() {
-    return Padding(
-      padding: EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'People Involved',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Padding(
+          padding: EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'People Involved',
+                style: TextStyle(
+                  fontSize: constraints.maxWidth > 600 ? 18 : 14,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
+              ),
+              SizedBox(height: 16),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: widget.task.peopleInvolved.map((person) => _buildPersonChip(person, constraints)).toList(),
+              ),
+            ],
           ),
-          SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: widget.task.peopleInvolved.map((person) => _buildPersonChip(person)).toList(),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildPersonChip(String person) {
+Widget _buildPersonChip(String person, BoxConstraints constraints) {
+    double fontSize = constraints.maxWidth > 600 ? 14 : 12;
+    double avatarRadius = constraints.maxWidth > 600 ? 14 : 10;
+    
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: AppColors.veryLightGreen,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           CircleAvatar(
-            radius: 10,
+            radius: avatarRadius,
             backgroundColor: AppColors.primary,
-            child: Text(person[0], style: TextStyle(fontSize: 10, color: Colors.white)),
+            child: Text(person[0], style: TextStyle(fontSize: fontSize, color: Colors.white)),
           ),
-          SizedBox(width: 6),
-          Text(person, style: TextStyle(fontSize: 12, color: AppColors.textDark)),
+          SizedBox(width: 8),
+          Text(person, style: TextStyle(fontSize: fontSize, color: AppColors.textDark)),
         ],
       ),
     );
   }
 
-  Widget _buildSubtasksSection() {
-  return Padding(
-    padding: EdgeInsets.all(16),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Subtasks',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
-            ),
-            _buildCreateSubtaskButton(),
-          ],
-        ),
-        SizedBox(height: 8),
-        ...widget.task.subTasks.map((subTask) => _buildSubTaskTile(subTask)),
-      ],
-    ),
-  );
-}
-
- Widget _buildSubTaskTile(SubTask subTask) {
+ Widget _buildSubtasksSection() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Padding(
+          padding: EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Subtasks',
+                    style: TextStyle(
+                      fontSize: constraints.maxWidth > 600 ? 18 : 14,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  _buildCreateSubtaskButton(constraints),
+                ],
+              ),
+              SizedBox(height: 16),
+              ...widget.task.subTasks.map((subTask) => _buildSubTaskTile(subTask, constraints)),
+            ],
+          ),
+        );
+      },
+    );
+  }
+Widget _buildSubTaskTile(SubTask subTask, BoxConstraints constraints) {
+    double fontSize = constraints.maxWidth > 600 ? 14 : 12;
+    
     return Container(
       margin: EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
@@ -438,8 +448,8 @@ void _showEnlargedImage(String imageData) {
             SizedBox(width: 8),
             if (subTask.imageData != null)
               Container(
-                width: 40,
-                height: 40,
+                width: constraints.maxWidth > 600 ? 50 : 40,
+                height: constraints.maxWidth > 600 ? 50 : 40,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
                   image: DecorationImage(
@@ -450,24 +460,24 @@ void _showEnlargedImage(String imageData) {
               ),
           ],
         ),
-        title: Text(subTask.name, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+        title: Text(subTask.name, style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w500)),
         subtitle: Text(
           '${subTask.assignedTo} • Due: ${DateFormat('MMM d').format(subTask.dueDate)}',
-          style: TextStyle(fontSize: 11),
+          style: TextStyle(fontSize: fontSize - 2),
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-              icon: Icon(Icons.edit, size: 18),
+              icon: Icon(Icons.edit, size: constraints.maxWidth > 600 ? 24 : 18),
               onPressed: () => _handleEditSubTask(subTask),
             ),
             IconButton(
-              icon: Icon(Icons.delete, size: 18),
+              icon: Icon(Icons.delete, size: constraints.maxWidth > 600 ? 24 : 18),
               onPressed: () => _handleDeleteSubTask(subTask),
             ),
             PopupMenuButton<SubTaskStatus>(
-              icon: Icon(Icons.more_vert, size: 18),
+              icon: Icon(Icons.more_vert, size: constraints.maxWidth > 600 ? 24 : 18),
               onSelected: (SubTaskStatus result) {
                 setState(() {
                   subTask.status = result;
@@ -478,7 +488,7 @@ void _showEnlargedImage(String imageData) {
                 for (var status in SubTaskStatus.values)
                   PopupMenuItem<SubTaskStatus>(
                     value: status,
-                    child: Text(_getStatusString(status), style: TextStyle(fontSize: 12)),
+                    child: Text(_getStatusString(status), style: TextStyle(fontSize: fontSize)),
                   ),
               ],
             ),
@@ -488,17 +498,23 @@ void _showEnlargedImage(String imageData) {
     );
   }
 
-Widget _buildCreateSubtaskButton() {
-  return TextButton.icon(
-    onPressed: _handleCreateSubTask,
-    icon: Icon(Icons.add, size: 16, color: AppColors.primary),
-    label: Text('Add', style: TextStyle(fontSize: 12, color: AppColors.primary)),
-    style: TextButton.styleFrom(
-      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-    ),
-  );
-}
+ Widget _buildCreateSubtaskButton(BoxConstraints constraints) {
+    return TextButton.icon(
+      onPressed: _handleCreateSubTask,
+      icon: Icon(Icons.add, size: constraints.maxWidth > 600 ? 20 : 16, color: AppColors.primary),
+      label: Text(
+        'Add',
+        style: TextStyle(
+          fontSize: constraints.maxWidth > 600 ? 14 : 12,
+          color: AppColors.primary,
+        ),
+      ),
+      style: TextButton.styleFrom(
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      ),
+    );
+  }
   Widget _buildDivider() {
     return Divider(height: 1, thickness: 1, color: AppColors.veryLightGreen);
   }
