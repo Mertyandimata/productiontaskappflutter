@@ -1,13 +1,24 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:html' as html;
+import 'package:etsu/widgets/TaskDetailHtmlGenerator.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../models/tasks.dart';
 import '../utils/app_colors.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import 'dart:ui' as ui;
+
+
+
+
 
 class TaskDetailPanel extends StatefulWidget {
   final MainTask task;
@@ -27,19 +38,22 @@ class TaskDetailPanel extends StatefulWidget {
 
 class _TaskDetailPanelState extends State<TaskDetailPanel> {
   int touchedIndex = -1;
+  final GlobalKey _globalKey = GlobalKey();
 
 
 @override
-  Widget build(BuildContext context) {
-    // Ekran genişliğine göre panel genişliğini ayarla
-    double panelWidth = MediaQuery.of(context).size.width;
-    if (MediaQuery.of(context).size.width > 1200) {
-      panelWidth = 1200; // Geniş ekranlar için maksimum genişlik
-    } else if (MediaQuery.of(context).size.width > 600) {
-      panelWidth = MediaQuery.of(context).size.width * 0.8; // Orta boy ekranlar için
-    }
+Widget build(BuildContext context) {
+  // Ekran genişliğine göre panel genişliğini ayarla
+  double panelWidth = MediaQuery.of(context).size.width;
+  if (MediaQuery.of(context).size.width > 1200) {
+    panelWidth = 1200; // Geniş ekranlar için maksimum genişlik
+  } else if (MediaQuery.of(context).size.width > 600) {
+    panelWidth = MediaQuery.of(context).size.width * 0.8; // Orta boy ekranlar için
+  }
 
-    return Container(
+  return RepaintBoundary(
+    key: _globalKey,
+    child: Container(
       width: panelWidth,
       decoration: BoxDecoration(
         color: Colors.white,
@@ -72,9 +86,11 @@ class _TaskDetailPanelState extends State<TaskDetailPanel> {
           ),
         ],
       ),
-    );
-  }
- Widget _buildHeader() {
+    ),
+  );
+}
+ 
+Widget _buildHeader() {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -95,14 +111,61 @@ class _TaskDetailPanelState extends State<TaskDetailPanel> {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          IconButton(
-            icon: Icon(Icons.close, color: Colors.white, size: 24),
-            onPressed: widget.onClose,
+          Row(
+            children: [
+              IconButton(
+                icon: Icon(Icons.print, color: Colors.white, size: 24),
+                onPressed: _generatePrintView,
+              ),
+              IconButton(
+                icon: Icon(Icons.close, color: Colors.white, size: 24),
+                onPressed: widget.onClose,
+              ),
+            ],
           ),
         ],
       ),
     );
   }
+
+
+void _generatePrintView() {
+  TaskDetailHtmlGenerator.generateAndOpenHtml(widget.task);
+}
+
+
+
+void _printTaskDetails() {
+  print('Task Name: ${widget.task.name}');
+  print('Description: ${widget.task.description}');
+  print('Start Date: ${DateFormat('MMM d, yyyy').format(widget.task.startDate)}');
+  
+  if (widget.task.dueDate != null) {
+    print('Due Date: ${DateFormat('MMM d, yyyy').format(widget.task.dueDate!)}');
+  }
+  
+  print('Department: ${widget.task.department}');
+  print('Plant: ${widget.task.plant}');
+  print('People Involved: ${widget.task.peopleInvolved.join(', ')}');
+
+  print('Subtasks:');
+  widget.task.subTasks.forEach((subTask) {
+    print('  - ${subTask.name}');
+    print('    Assigned to: ${subTask.assignedTo}');
+    print('    Due Date: ${DateFormat('MMM d, yyyy').format(subTask.dueDate)}');
+    print('    Status: ${_getStatusString(subTask.status)}');
+    if (subTask.note != null && subTask.note!.isNotEmpty) {
+      print('    Note: ${subTask.note}');
+    }
+  });
+
+  if (widget.task.imageData != null) {
+    print('Task has an image attached.');
+  } else {
+    print('No image attached to the task.');
+  }
+}
+
 Widget _buildDetailSection() {
   return Padding(
     padding: EdgeInsets.all(16),
@@ -431,69 +494,202 @@ Widget _buildPersonChip(String person, BoxConstraints constraints) {
     );
   }
 Widget _buildSubTaskTile(SubTask subTask, BoxConstraints constraints) {
-    double fontSize = constraints.maxWidth > 600 ? 14 : 12;
-    
-    return Container(
-      margin: EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: AppColors.almostWhite,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: ListTile(
-        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        leading: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _getStatusIcon(subTask.status),
-            SizedBox(width: 8),
-            if (subTask.imageData != null)
-              Container(
-                width: constraints.maxWidth > 600 ? 50 : 40,
-                height: constraints.maxWidth > 600 ? 50 : 40,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  image: DecorationImage(
-                    image: MemoryImage(base64Decode(subTask.imageData!)),
-                    fit: BoxFit.cover,
-                  ),
+  double fontSize = constraints.maxWidth > 600 ? 14 : 12;
+  
+  return Container(
+    margin: EdgeInsets.only(bottom: 8),
+    decoration: BoxDecoration(
+      color: AppColors.almostWhite,
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: ListTile(
+      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      leading: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _getStatusIcon(subTask.status),
+          SizedBox(width: 8),
+          if (subTask.imageData != null)
+            Container(
+              width: constraints.maxWidth > 600 ? 50 : 40,
+              height: constraints.maxWidth > 600 ? 50 : 40,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                image: DecorationImage(
+                  image: MemoryImage(base64Decode(subTask.imageData!)),
+                  fit: BoxFit.cover,
                 ),
               ),
-          ],
-        ),
-        title: Text(subTask.name, style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w500)),
-        subtitle: Text(
-          '${subTask.assignedTo} • Due: ${DateFormat('MMM d').format(subTask.dueDate)}',
-          style: TextStyle(fontSize: fontSize - 2),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: Icon(Icons.edit, size: constraints.maxWidth > 600 ? 24 : 18),
-              onPressed: () => _handleEditSubTask(subTask),
             ),
-            IconButton(
-              icon: Icon(Icons.delete, size: constraints.maxWidth > 600 ? 24 : 18),
-              onPressed: () => _handleDeleteSubTask(subTask),
+        ],
+      ),
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(subTask.name, style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w500)),
+          SizedBox(height: 2),
+          Text(
+            '${subTask.assignedTo} • Due: ${DateFormat('MMM d').format(subTask.dueDate)}',
+            style: TextStyle(fontSize: fontSize - 2),
+          ),
+        ],
+      ),
+      subtitle: subTask.note != null && subTask.note!.isNotEmpty
+        ? Padding(
+            padding: EdgeInsets.only(top: 4),
+            child: Text(
+              subTask.note!,
+              style: TextStyle(fontSize: fontSize - 3, color: AppColors.textDark),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
             ),
-            PopupMenuButton<SubTaskStatus>(
-              icon: Icon(Icons.more_vert, size: constraints.maxWidth > 600 ? 24 : 18),
-              onSelected: (SubTaskStatus result) {
-                setState(() {
-                  subTask.status = result;
-                  widget.onTaskUpdated(widget.task);
-                });
-              },
-              itemBuilder: (BuildContext context) => <PopupMenuEntry<SubTaskStatus>>[
-                for (var status in SubTaskStatus.values)
-                  PopupMenuItem<SubTaskStatus>(
-                    value: status,
-                    child: Text(_getStatusString(status), style: TextStyle(fontSize: fontSize)),
+          )
+        : null,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: Icon(Icons.edit, size: constraints.maxWidth > 600 ? 24 : 18),
+            onPressed: () => _handleEditSubTask(subTask),
+          ),
+          IconButton(
+            icon: Icon(Icons.delete, size: constraints.maxWidth > 600 ? 24 : 18),
+            onPressed: () => _handleDeleteSubTask(subTask),
+          ),
+          PopupMenuButton<SubTaskStatus>(
+            icon: Icon(Icons.more_vert, size: constraints.maxWidth > 600 ? 24 : 18),
+            onSelected: (SubTaskStatus result) {
+              setState(() {
+                subTask.status = result;
+                widget.onTaskUpdated(widget.task);
+              });
+            },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<SubTaskStatus>>[
+              for (var status in SubTaskStatus.values)
+                PopupMenuItem<SubTaskStatus>(
+                  value: status,
+                  child: Text(_getStatusString(status), style: TextStyle(fontSize: fontSize)),
+                ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+void _generateAndDownloadPdf() async {
+    final pdf = pw.Document();
+
+    final fontRegular = await PdfGoogleFonts.robotoRegular();
+    final fontBold = await PdfGoogleFonts.robotoBold();
+
+    pdf.addPage(
+      pw.Page(
+        build: (pw.Context context) {
+          return pw.Container(
+            padding: const pw.EdgeInsets.all(16),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  widget.task.name,
+                  style: pw.TextStyle(
+                    fontSize: 24,
+                    fontWeight: pw.FontWeight.bold,
+                    font: fontBold,
+                    color: PdfColors.blue,
                   ),
+                ),
+                pw.SizedBox(height: 16),
+                _buildPdfDetailRow('Description', widget.task.description, fontRegular),
+                _buildPdfDetailRow('Start Date', DateFormat('MMM d, yyyy').format(widget.task.startDate), fontRegular),
+                if (widget.task.dueDate != null)
+                  _buildPdfDetailRow('Due Date', DateFormat('MMM d, yyyy').format(widget.task.dueDate!), fontRegular),
+                _buildPdfDetailRow('Department', widget.task.department, fontRegular),
+                _buildPdfDetailRow('Plant', widget.task.plant, fontRegular),
+                pw.SizedBox(height: 20),
+                pw.Text(
+                  'People Involved',
+                  style: pw.TextStyle(
+                    fontSize: 18,
+                    fontWeight: pw.FontWeight.bold,
+                    font: fontBold,
+                    color: PdfColors.blueGrey,
+                  ),
+                ),
+                pw.SizedBox(height: 10),
+                pw.Bullet(
+                  text: widget.task.peopleInvolved.join(', '),
+                  style: pw.TextStyle(fontSize: 14, font: fontRegular),
+                ),
+                pw.SizedBox(height: 20),
+                pw.Text(
+                  'Subtasks',
+                  style: pw.TextStyle(
+                    fontSize: 18,
+                    fontWeight: pw.FontWeight.bold,
+                    font: fontBold,
+                    color: PdfColors.blueGrey,
+                  ),
+                ),
+                ...widget.task.subTasks.map((subTask) => _buildPdfSubTask(subTask, fontRegular, fontBold)),
+                if (widget.task.imageData != null) pw.SizedBox(height: 16),
+                if (widget.task.imageData != null) _buildPdfImage(widget.task.imageData!),
               ],
             ),
-          ],
+          );
+        },
+      ),
+    );
+
+    await Printing.layoutPdf(
+      onLayout: (format) async => pdf.save(),
+    );
+  }
+
+  pw.Widget _buildPdfDetailRow(String label, String value, pw.Font font) {
+    return pw.Row(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(
+          '$label: ',
+          style: pw.TextStyle(fontWeight: pw.FontWeight.bold, font: font),
         ),
+        pw.Expanded(
+          child: pw.Text(value, style: pw.TextStyle(font: font)),
+        ),
+      ],
+    );
+  }
+
+  pw.Widget _buildPdfSubTask(SubTask subTask, pw.Font fontRegular, pw.Font fontBold) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.symmetric(vertical: 8),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            subTask.name,
+            style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, font: fontBold),
+          ),
+          pw.Text('Assigned to: ${subTask.assignedTo}', style: pw.TextStyle(font: fontRegular)),
+          pw.Text('Due Date: ${DateFormat('MMM d, yyyy').format(subTask.dueDate)}', style: pw.TextStyle(font: fontRegular)),
+          pw.Text('Status: ${_getStatusString(subTask.status)}', style: pw.TextStyle(font: fontRegular)),
+          if (subTask.note != null && subTask.note!.isNotEmpty)
+            pw.Text('Note: ${subTask.note}', style: pw.TextStyle(font: fontRegular)),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _buildPdfImage(String imageData) {
+    final image = pw.MemoryImage(base64Decode(imageData));
+    return pw.Container(
+      width: 150,
+      height: 150,
+      decoration: pw.BoxDecoration(
+        image: pw.DecorationImage(image: image, fit: pw.BoxFit.cover),
       ),
     );
   }
@@ -743,8 +939,15 @@ Widget _getStatusIcon(SubTaskStatus status) {
     ],
   );
 }
+
+
+
    
    void _handleDeleteSubTask(SubTask subTask) {
+
+
+
+
   showDialog(
     context: context,
     builder: (BuildContext context) {
